@@ -102,7 +102,7 @@ int is_file_exist(char *path) {
     return 0;
 }
 NEW_CMD(clear) {
-	printf("\033c");
+	shell_print("\033c");
 	return 0;
 }
 NEW_CMD(cd) {
@@ -170,14 +170,14 @@ void pretty_print_list(char *files[], const char *path, int file_count) {
 				struct stat st;
 				if (stat(full_path, &st) == 0) {
 				    if (S_ISDIR(st.st_mode)) {
-				        printf("%s%-*s%s", COLOR_BLUE, col_width, files[idx], COLOR_RESET);
+				        shell_print("%s%-*s%s", COLOR_BLUE, col_width, files[idx], COLOR_RESET);
 				    } else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-				        printf("%s%-*s%s", COLOR_GREEN, col_width, files[idx], COLOR_RESET);
+				        shell_print("%s%-*s%s", COLOR_GREEN, col_width, files[idx], COLOR_RESET);
 				    } else {
-				        printf("%s%-*s%s", COLOR_WHITE, col_width, files[idx], COLOR_RESET);
+				        shell_print("%s%-*s%s", COLOR_WHITE, col_width, files[idx], COLOR_RESET);
 				    }
 				} else {
-				    printf("%-*s", col_width, files[idx]);
+				    shell_print("%-*s", col_width, files[idx]);
 				}
 			}
 
@@ -523,7 +523,7 @@ NEW_CMD(antivirus) {
 	char *full = malloc(strlen(buff) + strlen(dot) + 0x10);
 	int count = 0;
 	shell_print(buff);
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 4; i++) {
 		clear_line();
 		strcat(full, buff);
 		for (int i = 0; i < count; i++) {
@@ -534,6 +534,15 @@ NEW_CMD(antivirus) {
 		count = (i % 3) + 1;
 		full[0] = 0;
 	}
+	int fd = open("fun", O_RDWR);
+	int bytes_read = 0;
+	if (fd < 0) {
+		perror("file open");
+		return -1;
+	}
+	char buffer[4096] = {0};
+	bytes_read = read(fd, buffer, sizeof(buffer));
+	write(STDOUT_FILENO, buffer, bytes_read);
 	printf("\n");
 	return 0;
 
