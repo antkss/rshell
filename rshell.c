@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include "terminal.h"
 #include "parser.h"
@@ -14,6 +15,9 @@ char *command_history[MAX_HISTORY];
 unsigned int history_cnt = 0;
 unsigned int history_idx = 0;
 int counter = 0;
+int line_counter = 0;
+int len_line_counter = 0;
+struct winsize term_size;
 
 void delete_after_cursor() {
     input_buf[cursor] = '\0';
@@ -30,10 +34,15 @@ void delete_after_cursor() {
 	//  the cursor variable from the start is 0
 	//  and at the end of the buffer is actually the buffer len, the real position is 0 from the end of the buffer to the next slot
 }
+void input_line_handle(char *input_buf, int input_len) {
+	write(STDOUT_FILENO, "\033[A", 3); // move up
+	line_counter += 1;
+}
 void insert_char(char ch, char *buf) {
 	char *part_1 = buf;
 	char *part_2 = &buf[cursor];
 	int len_part2 = input_len - cursor;
+	
 	if (len_part2 < 0) {
 		shell_print("len_part2 error cursor: %d, input_len: %d \n", cursor, input_len);
 		return;
@@ -50,7 +59,10 @@ void insert_char(char ch, char *buf) {
 	}
 	cursor++;
 	input_len++;
+	// len_line_counter = input_len % term_size.ws_col ;
 	clear_line();
+	// write(STDOUT_FILENO, "\033[A", 3); // move up
+	// clear_line();
     write(STDOUT_FILENO, input_buf, input_len);
 	move_cursor_left(input_len - cursor);
 }
@@ -64,6 +76,7 @@ int main() {
 	shell_print("wellcome to my shell \n");
     enable_raw_mode();
 	while(1) {
+		term_size = get_terminal_size();
 		// shell_print("new buffer\n");
 		print_sign(GENERIC_PSI);
 		move_cursor_right(0);
@@ -149,12 +162,14 @@ int main() {
 				move_cursor_right(0);
 				continue;
 			} else if (c == '\t') {
-				char *ls_args[2] = {0};
-				printf("\n");
-				ls_cmd(ls_args, 2);
-				print_sign(GENERIC_PSI);
-				move_cursor_right(0);
-				write(STDOUT_FILENO, input_buf, input_len);
+				move_cursor_left(0);
+				// shell_print("tab works");
+				// char *ls_args[2] = {0};
+				// printf("\n");
+				// ls_cmd(ls_args, 2);
+				// print_sign(GENERIC_PSI);
+				// move_cursor_right(0);
+				// write(STDOUT_FILENO, input_buf, input_len);
 				continue;
 			} else {
 				if (input_len < sizeof(input_buf) - 1) {

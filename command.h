@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #pragma once
 
-typedef void (*command_fn)(char **args, int argc);
+typedef int (*command_fn)(char **args, int argc);
 
 typedef struct {
     const char *name;
@@ -17,6 +17,7 @@ typedef struct {
 } CommandEntry;
 
 #define CMD_ENTRY(cmd) { #cmd, cmd##_cmd }
+#define NEW_CMD(cmd) int cmd##_cmd(char **args, int argc)
 #define NUM_COMMANDS (sizeof(command_table)/sizeof(CommandEntry))
 #define GENERIC_PSI "@>" 
 #define PSI_LEN 2
@@ -28,17 +29,13 @@ typedef struct {
 
 void print_sign(char sign[]);
 void shell_print(const char *format, ...);
-void clear_cmd(char **args, int argc);
-void cd_cmd(char **args, int argc);
-void ls_cmd(char **args, int argc);
-void exit_cmd(char **args, int argc);
-void cat_cmd(char **args, int argc);
-void echo_cmd(char **args, int argc);
-void mkdir_cmd(char **args, int argc);
-void remove_recursive(char *path);
+int remove_recursive(char *path);
 int is_dir(char *path);
-void get_list_files(const char *path, char* content[], int *count);
+int get_list_files(const char *path, char* content[], int *count);
 int is_exist(char *buffer, char *buff_array[], int count); 
 int find_pos_token(char **args, int argc, char *target, int cur_pos);
 int parse_option(char **args, int argc, char **option);
-void call_command(const char *cmd, char **args, int argc);
+int call_command(const char *cmd, char **args, int argc);
+void md5sum_file(const char *filename);
+char* mstrcat(int count, ...);
+

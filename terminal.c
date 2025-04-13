@@ -37,18 +37,15 @@ void delete_forward_chars(int n) {
 }
 
 void clear_line() {
-	struct winsize size = get_terminal_size();
-	// if (input_len + PSI_LEN > size.ws_col) {
-	// 	// printf("ws_col: %u \n", size.ws_col);
-	// 	// delete_forward_chars(input_len + PSI_LEN + 1);
-	// 	write(STDOUT_FILENO, "\r\033[2K", 5);
-	// 	shell_print("%s", GENERIC_PSI);
-	// } else {
 	write(STDOUT_FILENO, "\r\033[2K", 5); // remove stdout current line
 	shell_print("%s", GENERIC_PSI);
 	move_cursor_right(0);	
-	// }
+}
 
+void clearln() {
+	write(STDOUT_FILENO, "\033[2K", 5); // remove stdout current line
+	shell_print("%s", GENERIC_PSI);
+	move_cursor_right(0);	
 }
 void move_cursor_right(int index) {
     char seq[32];

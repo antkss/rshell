@@ -12,4 +12,3 @@ void disable_raw_mode();
 void move_cursor_right(int index);
 void move_cursor_left(int index);
 void clear_line();
-void clearln();
