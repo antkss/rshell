@@ -15,10 +15,15 @@ typedef struct {
     const char *name;
     command_fn fn;
 } CommandEntry;
+typedef struct {
+	const char *cmd;
+	const char *description;
+} help_entry;
 
 #define CMD_ENTRY(cmd) { #cmd, cmd##_cmd }
 #define NEW_CMD(cmd) int cmd##_cmd(char **args, int argc)
 #define NUM_COMMANDS (sizeof(command_table)/sizeof(CommandEntry))
+#define NUM_HELP (sizeof(help_table)/sizeof(help_entry))
 #define GENERIC_PSI "@>" 
 #define PSI_LEN 2
 #define MAX_ARGS 64

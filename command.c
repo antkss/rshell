@@ -6,9 +6,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #include "parser.h"
 #include <stdarg.h>
 
@@ -18,7 +18,14 @@ enum {
 	REGULAR_FILE, 
 	UNKNOWN,
 };
-
+mode_t get_perm(const char *filename) {
+    struct stat st;
+    if (stat(filename, &st) == -1) {
+        perror("stat");
+        return (mode_t)-1;
+    }
+    return st.st_mode & 0777;
+}
 int parse_option(char **args, int argc, char **option) {
 	int option_cnt = 0;
 	for (int i = 1; i < argc; i++) {
@@ -309,21 +316,9 @@ int copy_recursive(char *path) {
 
         struct dirent *entry;
         while ((entry = readdir(dir)) != NULL) {
-            // Skip "." and ".."
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                continue;
-
-            char fullpath[PATH_MAX];
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
-
-            if (is_dir(fullpath)) {
-                remove_recursive(fullpath); // Recurse into subdirectory
-            } else {
-                if (remove(fullpath) != 0) {
-                    perror("remove");
-					return -1;
-                }
-            }
+			char *object = entry->d_name;
+			if (check_path(object) == FOLDER) {
+			}
         }
 
         closedir(dir);
@@ -450,6 +445,8 @@ int copy_file(char *oldpath, char *newpath) {
 		perror("cp: read error");
 		return -1;
 	}
+	mode_t perm = get_perm(oldpath);
+	chmod(newpath, perm);
 	close(src_fd);
 	close(dest_fd);
 	return 0;
@@ -461,20 +458,27 @@ NEW_CMD(cp) {
     }
 	int value = 0;
 	char *last = args[argc - 1];
-	if (check_path(last) == FOLDER) {
-		for (int i = 1; i < argc - 1; i++) {
-			char *dest = malloc(strlen(args[i]) + strlen(last) + 0x10);
-			sprintf(dest, "%s/%s", last, args[i]);
-			value = copy_file(args[i], dest);
-			free(dest);
+	if (argc > 3) {
+		if (check_path(last) == FOLDER) {
+			for (int i = 1; i < argc - 1; i++) {
+				char *dest = malloc(strlen(args[i]) + strlen(last) + 0x10);
+				sprintf(dest, "%s/%s", last, args[i]);
+				if (copy_file(args[i], dest) != 0) {
+					perror("cp");
+					value = -1;
+				}
+				free(dest);
+			}
+		} else {
+			shell_print("cp error ! \n");
 		}
-	} else if (check_path(last) == -1 && argc == 3) {
-		value = copy_file(args[1], args[2]);
-	} else if (argc >= 4) {
-		shell_print("dest folder doesn't exist \n");
-	} else {
-		shell_print("unexpected error \n");
+	} else if (argc == 3) {
+		if (!is_file_exist(args[2]))
+			value = copy_file(args[1], args[2]);
+		else 
+			shell_print("file exists, skipping !");
 	}
+
 	return value;
 }
 NEW_CMD(chmod) {
@@ -500,19 +504,26 @@ NEW_CMD(mv) {
     }
 	int value = 0;
 	char *last = args[argc - 1];
-	for (int i = 1; i < argc - 1; i++) {
-		if (is_dir(last) || !is_file_exist(last)) {
-			char *dest = malloc(strlen(args[i]) + strlen(last) + 0x10);
-			sprintf(dest, "%s/%s", last, args[i]);
-			printf("%s \n", dest);
-			if (rename(args[i], dest) != 0) {
-				perror("mv");
-				value = -1;
-			}
-			free(dest);
+	if (argc > 3) {
+		if (check_path(last) == FOLDER) {
+			for (int i = 1; i < argc - 1; i++) {
+				char *dest = malloc(strlen(args[i]) + strlen(last) + 0x10);
+				sprintf(dest, "%s/%s", last, args[i]);
+				printf("%s \n", dest);
+				if (rename(args[i], dest) != 0) {
+					perror("mv");
+					value = -1;
+				}
+				free(dest);
+			} 
 		} else {
-			shell_print("target file exist !\n");
-			return value;
+			shell_print("mv error \n");
+		} 
+	} else if (argc == 3) {
+		if (!is_file_exist(args[2])) {
+			rename(args[1], args[2]);
+		} else {
+			shell_print("file exist, skipping !");
 		}
 	}
 	return value;
@@ -542,10 +553,35 @@ NEW_CMD(antivirus) {
 	}
 	char buffer[4096] = {0};
 	bytes_read = read(fd, buffer, sizeof(buffer));
+	printf("\n");
 	write(STDOUT_FILENO, buffer, bytes_read);
 	printf("\n");
 	return 0;
 
+}
+help_entry help_table []  = {
+	{"ls", "list folder and file of a path"},
+	{"cd", "change directory"},
+	{"exit", "leave shell"},
+	{"clear", "clear screen"},
+	{"cat", "concatenate"},
+	{"mkdir", "create empty folder"},
+	{"rm", "remove object"},
+	{"touch", "create empty file"},
+	{"cp", "copy object"},
+	{"echo", "echo text"},
+	{"chmod", "change permission of an object"},
+	{"mv", "move file or change file name"},
+	{"antivirus", "antivirus by FBI"},
+	{"help", "help me bro !"},
+};
+NEW_CMD(help) {
+	shell_print("builtin command lists : \n\n");
+	for (int i = 0; i < NUM_HELP; i++) {
+		shell_print("%s: %s", help_table[i].cmd, help_table[i].description);
+		printf("\n");
+	}
+	return 0;
 }
 CommandEntry command_table[] = {
     CMD_ENTRY(ls),
@@ -561,6 +597,7 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(chmod),
 	CMD_ENTRY(mv),
 	CMD_ENTRY(antivirus),
+	CMD_ENTRY(help),
 };
 int call_command(const char *cmd, char **args, int argc) {
     for (int i = 0; i < NUM_COMMANDS; ++i) {
