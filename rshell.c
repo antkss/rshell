@@ -14,7 +14,6 @@ int input_len = 0;
 int line_cnt = 0;
 char *command_history[MAX_HISTORY];
 unsigned int history_cnt = 0;
-extern char **environ;
 
 void handle_deletion() {
     input_buf[cursor] = '\0';
@@ -64,7 +63,6 @@ int main() {
 
 	char *history = NULL;
 	unsigned int history_len = 0;
-
 	shell_print("wellcome to my shell \n");
 	set_raw_mode(1);
 	while(1) {
@@ -134,7 +132,7 @@ int main() {
 
 			} else if (c == 4) {
 				if (input_len == 0) {
-					shell_print("ctrl D");
+					shell_print("\nctrl D");
 					set_raw_mode(0);
 					exit(0);
 				}
@@ -144,9 +142,9 @@ int main() {
 				break;
 			} else if (c == 3) {
 				// shell_print("ctrl c works");
+				input_buf[input_len] = '\0';
 				input_len = 0;
 				cursor = 0;
-				memset(input_buf, 0, sizeof(input_buf));
 				shell_print("\n");
 				print_sign(GENERIC_PSI);
 				continue;

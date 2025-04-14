@@ -14,6 +14,15 @@
 #include <stdarg.h>
 
 #define READ_BYTES 4096
+extern char **environ;
+pid_t child_pid = -1;
+void handle_sigint(int sig) {
+    if (child_pid > 0) {
+        // Forward SIGINT to the child process
+        kill(child_pid, SIGINT);
+    }
+}
+
 enum {
 	FOLDER, 
 	REGULAR_FILE, 
@@ -573,6 +582,7 @@ help_entry help_table []  = {
 	{"echo", "echo text"},
 	{"chmod", "change permission of an object"},
 	{"mv", "move file or change file name"},
+	{"set", "manage environment variable"},
 	{"antivirus", "antivirus by FBI"},
 	{"help", "help me bro !"},
 };
@@ -581,6 +591,16 @@ NEW_CMD(help) {
 	for (int i = 0; i < NUM_HELP; i++) {
 		shell_print("%s: %s", help_table[i].cmd, help_table[i].description);
 		shell_print("\n");
+	}
+	return 0;
+}
+NEW_CMD(set) {
+	if (argc == 1) {
+		for (int i = 0; environ[i] != NULL; i++) {
+			shell_print("%s", environ[i]);
+			shell_print("\n");
+		}
+		return 0;
 	}
 	return 0;
 }
@@ -599,24 +619,31 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(mv),
 	CMD_ENTRY(antivirus),
 	CMD_ENTRY(help),
+	CMD_ENTRY(set)
 };
 int call_command(const char *cmd, char **args, int argc) {
+    signal(SIGINT, handle_sigint);
+	set_raw_mode(0);
     for (int i = 0; i < NUM_COMMANDS; ++i) {
         if (strcmp(command_table[i].name, cmd) == 0) {
             command_table[i].fn(args, argc);
+			set_raw_mode(1);
             return 1;
         }
     }
-	pid_t pid = fork();
-    if (pid == 0) {
+	child_pid = fork();
+    if (child_pid == 0) {
+		signal(SIGINT, SIG_DFL);
         execvp(args[0], args);
         perror("execvp");
+		set_raw_mode(1);
         exit(EXIT_FAILURE);
-    } else if (pid > 0) {
+    } else if (child_pid > 0) {
         wait(NULL);  // Wait for child to finish
     } else {
         perror("fork failed");
     }
+	set_raw_mode(1);
 	return -1;
 }
 
