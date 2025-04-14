@@ -144,7 +144,7 @@ int main() {
 				}
 			} else if (c == '\r' || c == '\n') {
 				input_buf[input_len] = '\0';
-				printf("\n");
+				shell_print("\n");
 				break;
 			} else if (c == 3) {
 				// shell_print("ctrl c works");
@@ -152,7 +152,7 @@ int main() {
 				cursor = 0;
 				line_cursor = 0;
 				memset(input_buf, 0, sizeof(input_buf));
-				printf("\n");
+				shell_print("\n");
 				print_sign(GENERIC_PSI);
 				continue;
 			} else if (c == '\t') {

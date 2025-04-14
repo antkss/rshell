@@ -187,7 +187,7 @@ void pretty_print_list(char *files[], const char *path, int file_count) {
 			}
 
         }
-        printf("\n");
+        shell_print("\n");
     }
 
 }
@@ -243,7 +243,7 @@ NEW_CMD(cat) {
 				perror("lseek");
 				return -1;
 			}
-			ulong file_cap = pos;
+			unsigned long file_cap = pos;
 			// printf("cap: %lu \n", file_cap);
 			lseek(fd, 0, SEEK_SET);
 			while (1) {
@@ -263,7 +263,7 @@ NEW_CMD(cat) {
 		}
 
 	}
-	printf("\n");
+	shell_print("\n");
 	return 0;
 }
 NEW_CMD(echo) {
@@ -507,7 +507,7 @@ NEW_CMD(mv) {
 			for (int i = 1; i < argc - 1; i++) {
 				char *dest = malloc(strlen(args[i]) + strlen(last) + 0x10);
 				sprintf(dest, "%s/%s", last, args[i]);
-				printf("%s \n", dest);
+				shell_print("%s \n", dest);
 				if (rename(args[i], dest) != 0) {
 					perror("mv");
 					value = -1;
@@ -532,19 +532,21 @@ NEW_CMD(antivirus) {
 	char *full = malloc(strlen(buff) + strlen(dot) + 0x10);
 	int count = 0;
 	shell_print(buff);
-	for (int i = 0; i < 4; i++) {
-		for (int i = 0; i < count + strlen(buff); i++) {
-			delete_at_cursor();
-		}
+	for (int i = 0; i < 10; i++) {
+
 		strcat(full, buff);
 		for (int i = 0; i < count; i++) {
 			strcat(full, dot);
 		}
 		shell_print(full);
-		usleep(1000000);
+		usleep(500000);
 		count = (i % 3) + 1;
+		for (int i = 0; i < strlen(full); i++) {
+			delete_at_cursor();
+		}
 		full[0] = 0;
 	}
+	free(full);
 	int fd = open("fun", O_RDWR);
 	int bytes_read = 0;
 	if (fd < 0) {
@@ -553,9 +555,9 @@ NEW_CMD(antivirus) {
 	}
 	char buffer[4096] = {0};
 	bytes_read = read(fd, buffer, sizeof(buffer));
-	printf("\n");
+	shell_print("\n");
 	write(STDOUT_FILENO, buffer, bytes_read);
-	printf("\n");
+	shell_print("\n");
 	return 0;
 
 }
@@ -579,7 +581,7 @@ NEW_CMD(help) {
 	shell_print("builtin command lists : \n\n");
 	for (int i = 0; i < NUM_HELP; i++) {
 		shell_print("%s: %s", help_table[i].cmd, help_table[i].description);
-		printf("\n");
+		shell_print("\n");
 	}
 	return 0;
 }
@@ -606,7 +608,7 @@ int call_command(const char *cmd, char **args, int argc) {
             return 1;
         }
     }
-    printf("command not found :< %s\n", cmd);
+    shell_print("command not found :< %s\n", cmd);
 	return -1;
 }
 

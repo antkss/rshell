@@ -116,14 +116,14 @@ TokenStream* tokenize(const char *input) {
 
 void print_ast(ASTNode *node, int indent) {
     if (!node) return;
-    for (int i = 0; i < indent; ++i) printf("  ");
+    for (int i = 0; i < indent; ++i) shell_print("  ");
     const char *type_str[] = {
         "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR",
         "WORD", "DQUOTE", "QUOTE"
     };
-    printf("%s", type_str[node->type]);
-    if (node->value) printf(": %s", node->value);
-    printf("\n");
+    shell_print("%s", type_str[node->type]);
+    if (node->value) shell_print(": %s", node->value);
+    shell_print("\n");
     print_ast(node->left, indent + 1);
     print_ast(node->right, indent + 1);
 }
