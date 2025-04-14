@@ -15,3 +15,5 @@ void clear_line();
 mode_t get_perm(const char *filename);
 void clearln();
 void set_raw_mode(int enable);
+void delete_at_cursor();
+void clear_chars(int n);

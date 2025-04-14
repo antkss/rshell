@@ -533,7 +533,9 @@ NEW_CMD(antivirus) {
 	int count = 0;
 	shell_print(buff);
 	for (int i = 0; i < 4; i++) {
-		clear_line();
+		for (int i = 0; i < count + strlen(buff); i++) {
+			delete_at_cursor();
+		}
 		strcat(full, buff);
 		for (int i = 0; i < count; i++) {
 			strcat(full, dot);

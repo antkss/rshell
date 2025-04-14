@@ -15,17 +15,14 @@ int line_cnt = 0;
 char *command_history[MAX_HISTORY];
 unsigned int history_cnt = 0;
 
-void delete_at_cursor() {
+void handle_deletion() {
     input_buf[cursor] = '\0';
 	char *next_buf = &input_buf[cursor + 1];
 	// shell_print("next_buf %s ", next_buf);
 	strcat(input_buf, next_buf);
 	// printf(" | input len: %d\n", input_len);
 	// printf(" | cursor: %d\n", cursor);
-	// clear_line();
-	move_cursor_left(1);
-    shell_print("\033[1P");              // Delete character at cursor
-    // write(STDOUT_FILENO, "\033[1P", 3);
+	delete_at_cursor();
 	// r@🍎 | lmaodark |
 	//    start       end
 	//  the cursor variable from the start is 0
@@ -92,10 +89,10 @@ int main() {
 					if (seq[1] == 'A') {
 						if (history_cnt > 0) {
 							counter--;
+							clear_chars(input_len);
 							history_idx = counter % history_cnt;
 							history = command_history[history_idx];
 							cursor = input_len = strlen(history);
-							clear_line();
 							shell_print("%s", history);
 							// shell_print("idx: %d", history_idx);
 							strncpy(input_buf, history, input_len);
@@ -104,10 +101,10 @@ int main() {
 					} else if (seq[1] == 'B') {
 						if (history_cnt > 0) {
 							counter++;
+							clear_chars(input_len);
 							history_idx = counter % history_cnt;
 							history = command_history[history_idx];
 							cursor = input_len = strlen(history);
-							clear_line();
 							shell_print("%s", history);
 							// shell_print("idx: %d", history_idx);
 							strncpy(input_buf, history, input_len);
@@ -135,7 +132,7 @@ int main() {
 					input_len--;
 					cursor--;
 					line_cursor = cursor % termsize.ws_col;
-					delete_at_cursor();
+					handle_deletion();
 				}
 			} else if (c == 5) {
 

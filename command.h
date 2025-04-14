@@ -24,7 +24,7 @@ typedef struct {
 #define NEW_CMD(cmd) int cmd##_cmd(char **args, int argc)
 #define NUM_COMMANDS (sizeof(command_table)/sizeof(CommandEntry))
 #define NUM_HELP (sizeof(help_table)/sizeof(help_entry))
-#define GENERIC_PSI "@>" 
+#define GENERIC_PSI "@> " 
 #define PSI_LEN 2
 #define MAX_ARGS 64
 #define COLOR_RESET   "\033[0m"

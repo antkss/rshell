@@ -32,6 +32,11 @@ void delete_forward_chars(int n) {
     write(STDOUT_FILENO, buf, strlen(buf));
 }
 
+void clear_chars(int n) {
+	for (int i = 0; i < n; i++) {
+		delete_at_cursor();
+	}
+}
 void clear_line() {
 	write(STDOUT_FILENO, "\r\033[2K", 5); // remove stdout current line
 	shell_print("%s", GENERIC_PSI);
@@ -46,6 +51,10 @@ void move_cursor_right(int index) {
     char seq[32];
     snprintf(seq, sizeof(seq), "\033[%dC", index); // C = right
     write(STDOUT_FILENO, seq, strlen(seq));
+}
+void delete_at_cursor() {
+	move_cursor_left(1);
+	shell_print("\033[1P");
 }
 void move_cursor_left(int n) {
     if (n > 0) {
