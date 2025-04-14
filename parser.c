@@ -238,18 +238,19 @@ void free_tokens(TokenStream *ts) {
 	}
 	free(ts);
 }
+
 void parse_call(char *input, int input_len) {
 	TokenStream *ts = tokenize(input);
 	ASTNode *root = parse_sequence(ts);
 	eval_ast(root);
-	char *history = concat_tokens(ts);
-
-	if (!is_exist(history, command_history, history_cnt)) {
-		command_history[history_cnt] = history;
-		history_cnt += 1;
-	} else {
-		free(history);
-	}
+	// char *history = concat_tokens(ts);
+	//
+	// if (!is_exist(history, command_history, history_cnt)) {
+	// 	command_history[history_cnt] = history;
+	// 	history_cnt += 1;
+	// } else {
+	// 	free(history);
+	// }
 	free_tokens(ts);
 	free_ast(root);
 }

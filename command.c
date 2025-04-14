@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include "parser.h"
 #include <stdarg.h>
@@ -169,9 +170,7 @@ void pretty_print_list(char *files[], const char *path, int file_count) {
         for (int col = 0; col < num_cols; col++) {
             int idx = col * num_rows + row;
             if (idx < file_count) {
-                // printf("%-*s", col_width, files[idx]);
 				snprintf(full_path, sizeof(full_path), "%s/%s", path, files[idx]);
-				// printf("%s ", full_path);
 				struct stat st;
 				if (stat(full_path, &st) == 0) {
 				    if (S_ISDIR(st.st_mode)) {
@@ -179,7 +178,7 @@ void pretty_print_list(char *files[], const char *path, int file_count) {
 				    } else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
 				        shell_print("%s%-*s%s", COLOR_GREEN, col_width, files[idx], COLOR_RESET);
 				    } else {
-				        shell_print("%s%-*s%s", COLOR_WHITE, col_width, files[idx], COLOR_RESET);
+				        shell_print("%s%-*s%s", COLOR_RESET, col_width, files[idx], COLOR_RESET);
 				    }
 				} else {
 				    shell_print("%-*s", col_width, files[idx]);
@@ -608,7 +607,16 @@ int call_command(const char *cmd, char **args, int argc) {
             return 1;
         }
     }
-    shell_print("command not found :< %s\n", cmd);
+	pid_t pid = fork();
+    if (pid == 0) {
+        execvp(args[0], args);
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    } else if (pid > 0) {
+        wait(NULL);  // Wait for child to finish
+    } else {
+        perror("fork failed");
+    }
 	return -1;
 }
 

@@ -14,6 +14,7 @@ int input_len = 0;
 int line_cnt = 0;
 char *command_history[MAX_HISTORY];
 unsigned int history_cnt = 0;
+extern char **environ;
 
 void handle_deletion() {
     input_buf[cursor] = '\0';
@@ -54,7 +55,6 @@ void insert_char(char ch, char *buf) {
 		write(STDOUT_FILENO, &ch, 1);
 	}
 	cursor++;
-	line_cursor = cursor % termsize.ws_col;
 	input_len++;
 	input_buf[input_len] = '\0';
 }
@@ -71,7 +71,6 @@ int main() {
 		// shell_print("new buffer\n");
 		print_sign(GENERIC_PSI);
 		cursor = 0;
-		line_cursor = 0;
 		input_len = 0;
 		int history_idx = 0;
 		int counter = history_cnt;
@@ -114,7 +113,6 @@ int main() {
 						// shell_print("right");
 						if (cursor < input_len) {
 							cursor++;
-							line_cursor = cursor % termsize.ws_col;
 							write(STDOUT_FILENO, "\033[1C", 4);
 						}
 						// shell_print("cursor: %d \n", cursor);
@@ -122,7 +120,6 @@ int main() {
 						// shell_print("left");
 						if (cursor > 0) {
 							cursor--;
-							line_cursor = cursor % termsize.ws_col;
 							write(STDOUT_FILENO, "\033[1D", 4);
 						}
 					}
@@ -131,7 +128,6 @@ int main() {
 				if (input_len > 0 && cursor > 0) {
 					input_len--;
 					cursor--;
-					line_cursor = cursor % termsize.ws_col;
 					handle_deletion();
 				}
 			} else if (c == 5) {
@@ -150,7 +146,6 @@ int main() {
 				// shell_print("ctrl c works");
 				input_len = 0;
 				cursor = 0;
-				line_cursor = 0;
 				memset(input_buf, 0, sizeof(input_buf));
 				shell_print("\n");
 				print_sign(GENERIC_PSI);
