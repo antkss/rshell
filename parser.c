@@ -130,13 +130,13 @@ void print_ast(ASTNode *node, int indent) {
     for (int i = 0; i < indent; ++i) shell_print("  ");
     const char *type_str[] = {
         "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR",
-        "WORD", "DQUOTE", "QUOTE"
+        "WORD", "DQUOTE", "QUOTE", "EQUAL"
     };
     shell_print("%s", type_str[node->type]);
     if (node->value) shell_print(": %s", node->value);
     shell_print("\n");
-    print_ast(node->left, indent + 1);
-    print_ast(node->right, indent + 1);
+    print_ast(node->left, indent + 2);
+    print_ast(node->right, indent + 2);
 }
 int eval_ast(ASTNode *node) {
     if (!node) return 1;
@@ -151,6 +151,12 @@ int eval_ast(ASTNode *node) {
                 curr = curr->right;
             }
             if (argc == 0) return 1;
+			for (int i = 0; i < argc; i++) {
+				if (!strncmp(argv[i], "=", 1)) {
+					setenv(argv[0], argv[i + 1], 1);
+					return 0;
+				}
+			}
 
             call_command(argv[0], argv, argc);
             return 0;
@@ -263,6 +269,7 @@ void parse_call(char *input, int input_len) {
 	// } else {
 	// 	free(history);
 	// }
+	print_ast(root, 3);
 	free_tokens(ts);
 	free_ast(root);
 }

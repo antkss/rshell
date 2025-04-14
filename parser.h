@@ -20,7 +20,7 @@ typedef enum {
 
 typedef struct ASTNode {
     NodeType type;
-    char *value;  // For WORD/QUOTE/DQUOTE
+    char *value;  // For EQUAL
     struct ASTNode *left;
     struct ASTNode *right;
 } ASTNode;

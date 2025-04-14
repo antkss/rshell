@@ -43,4 +43,5 @@ int parse_option(char **args, int argc, char **option);
 int call_command(const char *cmd, char **args, int argc);
 void md5sum_file(const char *filename);
 char* mstrcat(int count, ...);
+void handle_sigint(int sig);
 

@@ -31,7 +31,6 @@ void handle_deletion() {
 
 
 void insert_char(char ch, char *buf) {
-	struct winsize termsize = get_terminal_size();
 	char *part_1 = buf;
 	char *part_2 = &buf[cursor];
 	int len_part2 = input_len - cursor;
@@ -65,6 +64,7 @@ int main() {
 	unsigned int history_len = 0;
 	shell_print("wellcome to my shell \n");
 	set_raw_mode(1);
+	signal(SIGINT, SIG_IGN);
 	while(1) {
 		// shell_print("new buffer\n");
 		print_sign(GENERIC_PSI);
@@ -76,7 +76,6 @@ int main() {
 		while (1) {
 			char c;
 			read(STDIN_FILENO, &c, 1);
-			struct winsize termsize = get_terminal_size();
 			// printf("byte: %d\n", (int)c);
 			if (c == '\x1b') { // Escape sequence
 				char seq[2];
@@ -134,14 +133,13 @@ int main() {
 				if (input_len == 0) {
 					shell_print("\nctrl D");
 					set_raw_mode(0);
-					exit(0);
+					_exit(1);
 				}
 			} else if (c == '\r' || c == '\n') {
-				input_buf[input_len] = '\0';
+				// input_buf[input_len] = '\0';
 				shell_print("\n");
 				break;
 			} else if (c == 3) {
-				// shell_print("ctrl c works");
 				input_buf[input_len] = '\0';
 				input_len = 0;
 				cursor = 0;

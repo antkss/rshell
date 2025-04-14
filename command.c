@@ -2,6 +2,7 @@
 #include "terminal.h"
 #include <linux/limits.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -249,9 +250,12 @@ NEW_CMD(ls){
 		}
 	}
 	int real_argc = argc - op_num;
-	if (real_argc == 1) {
-		value = get_list_files(".", content, &count);
-		pretty_print_list(content, ".", count, is_all);
+	if (real_argc == 1 || real_argc == 2) {
+		char *path = args[1];
+		// shell_print("%s \n", path);
+		if (path == NULL) path = ".";
+		value = get_list_files(path, content, &count);
+		pretty_print_list(content, path, count, is_all);
 		for (int i = 0; i < count; i++) {
 			free(content[i]);
 		}
@@ -475,7 +479,7 @@ int copy_file(char *oldpath, char *newpath) {
 		return -1;
 	}
 
-	char buffer[4096];
+	char buffer[READ_BYTES];
 	ssize_t bytes_read;
 
 	while ((bytes_read = read(src_fd, buffer, sizeof(buffer))) > 0) {
@@ -599,7 +603,7 @@ NEW_CMD(antivirus) {
 		perror("file open");
 		return -1;
 	}
-	char buffer[4096] = {0};
+	char buffer[READ_BYTES] = {0};
 	bytes_read = read(fd, buffer, sizeof(buffer));
 	shell_print("\n");
 	write(STDOUT_FILENO, buffer, bytes_read);
@@ -671,28 +675,29 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(set)
 };
 int call_command(const char *cmd, char **args, int argc) {
-    signal(SIGINT, handle_sigint);
+	for (int i = 0; i < NUM_COMMANDS; ++i) {
+		if (strcmp(command_table[i].name, cmd) == 0) {
+			command_table[i].fn(args, argc);
+			return 1;
+		}
+	}
 	set_raw_mode(0);
-    for (int i = 0; i < NUM_COMMANDS; ++i) {
-        if (strcmp(command_table[i].name, cmd) == 0) {
-            command_table[i].fn(args, argc);
-			set_raw_mode(1);
-            return 1;
-        }
-    }
 	child_pid = fork();
     if (child_pid == 0) {
 		signal(SIGINT, SIG_DFL);
+		signal(SIGINT, handle_sigint);
+		// run builtin command first
+
+		// call command from system
         execvp(args[0], args);
         perror("execvp");
-		set_raw_mode(1);
-        exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);
     } else if (child_pid > 0) {
         wait(NULL);  // Wait for child to finish
     } else {
         perror("fork failed");
     }
 	set_raw_mode(1);
-	return -1;
+	return EXIT_FAILURE;
 }
 

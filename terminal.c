@@ -4,7 +4,10 @@
 #include "command.h"
 int cursor = 0;
 int line_cursor = 0;
-struct termios oldt;
+tcflag_t old_lflag;
+cc_t     old_vtime;
+struct termios term;
+
 struct winsize get_terminal_size(){
 	struct winsize w;
 
@@ -17,12 +20,27 @@ struct winsize get_terminal_size(){
 void set_raw_mode(int enable) {
     static struct termios newt;
     if (enable) {
-        tcgetattr(STDIN_FILENO, &oldt);
-        newt = oldt;
-        newt.c_lflag &= ~(ICANON | ECHO | ISIG);
-        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+		if( tcgetattr(STDIN_FILENO, &term) < 0 ) {
+			perror("tcgetattr");
+			exit(1);
+		}
+		old_lflag = term.c_lflag;
+		old_vtime = term.c_cc[VTIME];
+		// printf("lflag: %u | old_vtime: %u \n", old_lflag, old_vtime);
+		term.c_lflag &= ~(ICANON | ECHO | ISIG);
+		term.c_cc[VTIME] = 1;
+		if( tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0 ) {
+			perror("tcsetattr");
+			exit(1);
+		}
     } else {
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+		term.c_lflag     = old_lflag;
+		term.c_cc[VTIME] = old_vtime;
+		// printf("lflag: %u | old_vtime: %u \n", old_lflag, old_vtime);
+		if( tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0 ) {
+			perror("tcsetattr");
+			exit(1);
+		}
     }
 }
 
