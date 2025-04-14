@@ -39,9 +39,7 @@ int parse_option(char **args, int argc, char **option) {
 	return option_cnt;
 }
 void print_sign(char sign[]) {
-	fflush(stdout);
-	printf("%s", sign);
-	fflush(stdout);
+	write(STDOUT_FILENO, sign, strlen(sign));
 }
 int is_dir(char *path) {
     struct stat st;
@@ -139,7 +137,7 @@ int find_pos_token(char **args, int argc, char *target, int cur_pos) {
 }
 
 NEW_CMD(exit) {
-	disable_raw_mode();
+	set_raw_mode(0);
 	exit(0);
 }
 void pretty_print_list(char *files[], const char *path, int file_count) {

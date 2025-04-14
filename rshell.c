@@ -11,34 +11,30 @@
 
 char input_buf[ARG_MAX];
 int input_len = 0;
+int line_cnt = 0;
 char *command_history[MAX_HISTORY];
 unsigned int history_cnt = 0;
-unsigned int history_idx = 0;
-int counter = 0;
-int line_counter = 0;
-int len_line_counter = 0;
-struct winsize term_size;
 
-void delete_after_cursor() {
+void delete_at_cursor() {
     input_buf[cursor] = '\0';
 	char *next_buf = &input_buf[cursor + 1];
 	// shell_print("next_buf %s ", next_buf);
 	strcat(input_buf, next_buf);
 	// printf(" | input len: %d\n", input_len);
 	// printf(" | cursor: %d\n", cursor);
-	clear_line();
-    write(STDOUT_FILENO, input_buf, input_len);
-	move_cursor_left(input_len - cursor);
+	// clear_line();
+	move_cursor_left(1);
+    shell_print("\033[1P");              // Delete character at cursor
+    // write(STDOUT_FILENO, "\033[1P", 3);
 	// r@🍎 | lmaodark |
 	//    start       end
 	//  the cursor variable from the start is 0
 	//  and at the end of the buffer is actually the buffer len, the real position is 0 from the end of the buffer to the next slot
 }
-void input_line_handle(char *input_buf, int input_len) {
-	write(STDOUT_FILENO, "\033[A", 3); // move up
-	line_counter += 1;
-}
+
+
 void insert_char(char ch, char *buf) {
+	struct winsize termsize = get_terminal_size();
 	char *part_1 = buf;
 	char *part_2 = &buf[cursor];
 	int len_part2 = input_len - cursor;
@@ -54,17 +50,16 @@ void insert_char(char ch, char *buf) {
 		buf[cursor + 1] = 0;
 		strcat(buf, tmp);
 		free(tmp);
+		shell_print("\033[1@");
+		write(STDOUT_FILENO, &ch, 1);
 	} else {
 		input_buf[input_len] = ch;
+		write(STDOUT_FILENO, &ch, 1);
 	}
 	cursor++;
+	line_cursor = cursor % termsize.ws_col;
 	input_len++;
-	// len_line_counter = input_len % term_size.ws_col ;
-	clear_line();
-	// write(STDOUT_FILENO, "\033[A", 3); // move up
-	// clear_line();
-    write(STDOUT_FILENO, input_buf, input_len);
-	move_cursor_left(input_len - cursor);
+	input_buf[input_len] = '\0';
 }
 
 
@@ -74,20 +69,20 @@ int main() {
 	unsigned int history_len = 0;
 
 	shell_print("wellcome to my shell \n");
-    enable_raw_mode();
+	set_raw_mode(1);
 	while(1) {
-		term_size = get_terminal_size();
 		// shell_print("new buffer\n");
 		print_sign(GENERIC_PSI);
-		move_cursor_right(0);
 		cursor = 0;
+		line_cursor = 0;
 		input_len = 0;
-		history_idx = 0;
-		counter = history_cnt;
+		int history_idx = 0;
+		int counter = history_cnt;
 
 		while (1) {
 			char c;
 			read(STDIN_FILENO, &c, 1);
+			struct winsize termsize = get_terminal_size();
 			// printf("byte: %d\n", (int)c);
 			if (c == '\x1b') { // Escape sequence
 				char seq[2];
@@ -122,6 +117,7 @@ int main() {
 						// shell_print("right");
 						if (cursor < input_len) {
 							cursor++;
+							line_cursor = cursor % termsize.ws_col;
 							write(STDOUT_FILENO, "\033[1C", 4);
 						}
 						// shell_print("cursor: %d \n", cursor);
@@ -129,6 +125,7 @@ int main() {
 						// shell_print("left");
 						if (cursor > 0) {
 							cursor--;
+							line_cursor = cursor % termsize.ws_col;
 							write(STDOUT_FILENO, "\033[1D", 4);
 						}
 					}
@@ -137,15 +134,15 @@ int main() {
 				if (input_len > 0 && cursor > 0) {
 					input_len--;
 					cursor--;
-					delete_after_cursor();
+					line_cursor = cursor % termsize.ws_col;
+					delete_at_cursor();
 				}
 			} else if (c == 5) {
-				move_cursor_right(0);
 
 			} else if (c == 4) {
 				if (input_len == 0) {
 					shell_print("ctrl D");
-					disable_raw_mode();
+					set_raw_mode(0);
 					exit(0);
 				}
 			} else if (c == '\r' || c == '\n') {
@@ -156,20 +153,12 @@ int main() {
 				// shell_print("ctrl c works");
 				input_len = 0;
 				cursor = 0;
+				line_cursor = 0;
 				memset(input_buf, 0, sizeof(input_buf));
 				printf("\n");
 				print_sign(GENERIC_PSI);
-				move_cursor_right(0);
 				continue;
 			} else if (c == '\t') {
-				move_cursor_left(0);
-				// shell_print("tab works");
-				// char *ls_args[2] = {0};
-				// printf("\n");
-				// ls_cmd(ls_args, 2);
-				// print_sign(GENERIC_PSI);
-				// move_cursor_right(0);
-				// write(STDOUT_FILENO, input_buf, input_len);
 				continue;
 			} else {
 				if (input_len < sizeof(input_buf) - 1) {
@@ -178,7 +167,6 @@ int main() {
 			}
 		}
 		parse_call(input_buf, input_len);
-
 	}
 	return 0;
 }

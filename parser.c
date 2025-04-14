@@ -97,19 +97,21 @@ ASTNode* parse_sequence(TokenStream *ts) {
     return node;
 }
 
-char** tokenize(const char *input, int *count) {
+TokenStream* tokenize(const char *input) {
     char *copy = strdup(input);
     char *tok = strtok(copy, " ");
-    char **tokens = malloc(sizeof(char*) * 128);
+    char **tokens = malloc(sizeof(char*) * 128); // buffer overflow
+	TokenStream *ts = malloc(sizeof(TokenStream));
+	ts->tokens = tokens;
     int i = 0;
     while (tok) {
         tokens[i++] = strdup(tok);
         tok = strtok(NULL, " ");
     }
+	ts->count = i;
     tokens[i] = NULL;
-    *count = i;
     free(copy);
-    return tokens;
+    return ts;
 }
 
 void print_ast(ASTNode *node, int indent) {
@@ -216,29 +218,38 @@ void free_ast(ASTNode *node) {
         free(node->value);
     free(node);
 }
-void clean_tree(ASTNode *root) {
-
+char *concat_tokens(TokenStream *ts) {
+       int total = 0;
+       for (int i = 0; i < ts->count; i++) {
+               total += strlen(ts->tokens[i]);
+       }
+       char *concated = malloc(total + 0x10);
+       concated[0] = '\0';
+       for (int i = 0; i < ts->count; i++) {
+               strcat(concated, ts->tokens[i]);
+               if (i < ts->count - 1)
+                       strcat(concated, " ");  // add space between tokens
+       }
+       return concated;
+}
+void free_tokens(TokenStream *ts) {
+	for (int i = 0; i < ts->count; i++) {
+		free(ts->tokens[i]);
+	}
+	free(ts);
 }
 void parse_call(char *input, int input_len) {
-	int token_count;
-	char **tokens = tokenize(input, &token_count);
-	TokenStream ts = { tokens, token_count, 0 };
-	ASTNode *root = parse_sequence(&ts);
+	TokenStream *ts = tokenize(input);
+	ASTNode *root = parse_sequence(ts);
 	eval_ast(root);
-	char *history = malloc(input_len + 0x10);
-	history[0] = 0;
-	for (int i = 0; i < token_count; i++) {
-		strcat(history, tokens[i]);
-		if (i < token_count - 1)
-			strcat(history, " ");  // add space between tokens
-	}
+	char *history = concat_tokens(ts);
+
 	if (!is_exist(history, command_history, history_cnt)) {
 		command_history[history_cnt] = history;
 		history_cnt += 1;
 	} else {
 		free(history);
 	}
-	// print_ast(root, 0);
-	free(tokens);
+	free_tokens(ts);
 	free_ast(root);
 }

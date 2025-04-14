@@ -3,7 +3,8 @@
 #include <termios.h>
 #include "command.h"
 int cursor = 0;
-struct termios orig_termios;
+int line_cursor = 0;
+struct termios oldt;
 struct winsize get_terminal_size(){
 	struct winsize w;
 
@@ -13,23 +14,18 @@ struct winsize get_terminal_size(){
 	return w;
 }
 
-
-void enable_raw_mode() {
-    struct termios raw;
-    tcgetattr(STDIN_FILENO, &orig_termios);
-    raw = orig_termios;
-
-    raw.c_lflag &= ~(ICANON | ECHO | ISIG); // Turn off canonical mode, echo, and signal handling
-    raw.c_cc[VMIN] = 1;
-    raw.c_cc[VTIME] = 0;
-
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+void set_raw_mode(int enable) {
+    static struct termios newt;
+    if (enable) {
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO | ISIG);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    }
 }
 
-
-void disable_raw_mode() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
-}
 void delete_forward_chars(int n) {
     char buf[16];
     snprintf(buf, sizeof(buf), "\x1b[%dP", n);  // DCH - Delete Character
@@ -39,7 +35,6 @@ void delete_forward_chars(int n) {
 void clear_line() {
 	write(STDOUT_FILENO, "\r\033[2K", 5); // remove stdout current line
 	shell_print("%s", GENERIC_PSI);
-	move_cursor_right(0);	
 }
 
 void clearln() {

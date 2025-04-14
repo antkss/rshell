@@ -39,8 +39,8 @@ ASTNode* parse_pipeline(TokenStream *ts);
 ASTNode* parse_redir(TokenStream *ts);
 ASTNode* parse_and_or(TokenStream *ts);
 ASTNode* parse_sequence(TokenStream *ts);
-char** tokenize(const char *input, int *count);
+TokenStream *tokenize(const char *input);
 void print_ast(ASTNode *node, int indent);
 void parse_call(char *input, int input_len);
-               
+char *concat_tokens(TokenStream *ts);
                
