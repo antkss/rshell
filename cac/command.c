@@ -259,7 +259,6 @@ NEW_CMD(ls){
 		// get list files, folders
 		for (int i = 1; i < argc; i++) {
 			char *path = args[i];
-			shell_print("%s: \n", path);
 			if (path != NULL) {
 				value = get_list_files(path, content, &count);
 				pretty_print_list(content, path, count, is_all);
