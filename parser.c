@@ -100,16 +100,27 @@ ASTNode* parse_sequence(TokenStream *ts) {
 TokenStream* tokenize(const char *input) {
     char *copy = strdup(input);
     char *tok = strtok(copy, " ");
-    char **tokens = malloc(sizeof(char*) * 128); // buffer overflow
-	TokenStream *ts = malloc(sizeof(TokenStream));
-	ts->tokens = tokens;
-    int i = 0;
+    
+    int capacity = 8;  // Start small and grow
+    char **tokens = malloc(sizeof(char*) * capacity);
+    
+    TokenStream *ts = malloc(sizeof(TokenStream));
+    ts->tokens = tokens;
+    ts->count = 0;
+
     while (tok) {
-        tokens[i++] = strdup(tok);
+        // Resize if needed
+        if (ts->count >= capacity) {
+            capacity *= 2;
+            tokens = realloc(tokens, sizeof(char*) * capacity);
+            ts->tokens = tokens;
+        }
+
+        tokens[ts->count++] = strdup(tok);
         tok = strtok(NULL, " ");
     }
-	ts->count = i;
-    tokens[i] = NULL;
+
+    tokens[ts->count] = NULL;  // Null-terminate the token list
     free(copy);
     return ts;
 }
@@ -233,10 +244,11 @@ char *concat_tokens(TokenStream *ts) {
        return concated;
 }
 void free_tokens(TokenStream *ts) {
-	for (int i = 0; i < ts->count; i++) {
-		free(ts->tokens[i]);
-	}
-	free(ts);
+    for (int i = 0; i < ts->count; i++) {
+        free(ts->tokens[i]);
+    }
+    free(ts->tokens);
+    free(ts);
 }
 
 void parse_call(char *input, int input_len) {
