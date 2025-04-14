@@ -269,7 +269,7 @@ void parse_call(char *input, int input_len) {
 	// } else {
 	// 	free(history);
 	// }
-	print_ast(root, 3);
+	// print_ast(root, 3);
 	free_tokens(ts);
 	free_ast(root);
 }
