@@ -254,20 +254,43 @@ void free_tokens(TokenStream *ts) {
     free(ts->tokens);
     free(ts);
 }
-
+char **extract_line(const char *input, int *line_cnt) {
+    int capacity = 8;  // Start small and grow
+    char **lines = malloc(sizeof(char*) * capacity);
+	char *copy = strdup(input);
+	char *line = strtok(copy, "\n");
+	*line_cnt = 0;
+	while (line) {
+        if (*line_cnt >= capacity) {
+            capacity *= 2;
+            lines = realloc(lines, sizeof(char*) * capacity);
+        }
+		lines[*line_cnt] = strdup(line);
+		line = strtok(NULL, "\n");
+		*line_cnt += 1;
+		
+	}
+	free(copy);
+	return lines;
+}
+void free_lines(char **lines, int line_cnt) {
+	for (int i = 0; i < line_cnt; i++) {
+		free(lines[i]);
+	}
+	free(lines);
+}
 void parse_call(char *input, int input_len) {
-	TokenStream *ts = tokenize(input);
-	ASTNode *root = parse_sequence(ts);
-	eval_ast(root);
-	// char *history = concat_tokens(ts);
-	//
-	// if (!is_exist(history, command_history, history_cnt)) {
-	// 	command_history[history_cnt] = history;
-	// 	history_cnt += 1;
-	// } else {
-	// 	free(history);
-	// }
+	int line_cnt;
+	char **lines = extract_line(input, &line_cnt);
+	for (int i = 0; i < line_cnt; i++) {
+		TokenStream *ts = tokenize(lines[i]);
+		ASTNode *root = parse_sequence(ts);
+		eval_ast(root);
+		free_tokens(ts);
+		free_ast(root);
+	}
+
 	// print_ast(root, 3);
-	free_tokens(ts);
-	free_ast(root);
+
+	free_lines(lines, line_cnt);
 }

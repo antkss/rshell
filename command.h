@@ -25,6 +25,7 @@ typedef struct {
 #define NUM_COMMANDS (sizeof(command_table)/sizeof(CommandEntry))
 #define NUM_HELP (sizeof(help_table)/sizeof(help_entry))
 #define GENERIC_PSI "@> " 
+#define CONFIG_FILE_NAME ".rshell"
 #define MAX_ARGS 64
 #define COLOR_RESET   "\033[0m"
 #define COLOR_BLUE    "\033[34m"

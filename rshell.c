@@ -9,6 +9,8 @@
 #include "parser.h"
 #include <readline/readline.h>
 #include <readline/history.h>
+#include "config.h"
+char *home = NULL;
 pid_t child_pid = -1;
 char *input;
 
@@ -26,10 +28,18 @@ void handle_sigint(int sig) {
     rl_redisplay();
 }
 
+void read_config() {
+	char *config_path = malloc(strlen(home) + strlen(CONFIG_FILE_NAME) + 0x10);
+	sprintf(config_path, "%s/%s", home, CONFIG_FILE_NAME);
+	char *config_read = read_file(config_path);
+	parse_call(config_read, strlen(config_read));
+	free(config_path);
+	free(config_read);
+}
 
 int main() {
-
-	char *history = NULL;
+	home = getenv("HOME");
+	read_config();
 	shell_print("wellcome to my shell \n");
 	signal(SIGINT, handle_sigint);
 
@@ -40,6 +50,7 @@ int main() {
 			// shell_print("%s", input);
         }
         free(input);
+		input = NULL;
     }
 
 	return 0;
