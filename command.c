@@ -1,5 +1,4 @@
 #include "command.h"
-#include "terminal.h"
 #include <linux/limits.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -14,16 +13,11 @@
 #include <unistd.h>
 #include "parser.h"
 #include <stdarg.h>
+#include "terminal.h"
 
 #define READ_BYTES 4096
 extern char **environ;
-pid_t child_pid = -1;
-void handle_sigint(int sig) {
-    if (child_pid > 0) {
-        // Forward SIGINT to the child process
-        kill(child_pid, SIGINT);
-    }
-}
+extern pid_t child_pid;
 
 enum {
 	FOLDER, 
@@ -152,7 +146,6 @@ int find_pos_token(char **args, int argc, char *target, int cur_pos) {
 }
 
 NEW_CMD(exit) {
-	set_raw_mode(0);
 	exit(0);
 }
 void pretty_print_list(char *files[], const char *path, int file_count, int is_all) {
@@ -581,7 +574,8 @@ NEW_CMD(antivirus) {
 	char dot[] = ".";
 	char *full = malloc(strlen(buff) + strlen(dot) + 0x10);
 	int count = 0;
-	shell_print(buff);
+	full[0] = '\0';
+	// shell_print(buff);
 	for (int i = 0; i < 10; i++) {
 
 		strcat(full, buff);
@@ -675,19 +669,15 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(set)
 };
 int call_command(const char *cmd, char **args, int argc) {
+	// run builtin command first
 	for (int i = 0; i < NUM_COMMANDS; ++i) {
 		if (strcmp(command_table[i].name, cmd) == 0) {
 			command_table[i].fn(args, argc);
 			return 1;
 		}
 	}
-	set_raw_mode(0);
 	child_pid = fork();
     if (child_pid == 0) {
-		signal(SIGINT, SIG_DFL);
-		signal(SIGINT, handle_sigint);
-		// run builtin command first
-
 		// call command from system
         execvp(args[0], args);
         perror("execvp");
@@ -697,7 +687,7 @@ int call_command(const char *cmd, char **args, int argc) {
     } else {
         perror("fork failed");
     }
-	set_raw_mode(1);
+	child_pid = -1;
 	return EXIT_FAILURE;
 }
 

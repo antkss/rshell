@@ -1,10 +1,6 @@
 #include <linux/limits.h>
 #include <string.h>
 
-#define MAX_HISTORY 0x1000
-extern char *command_history[MAX_HISTORY];
-extern unsigned int history_cnt;
-
 typedef enum {
     NODE_CMD,
     NODE_PIPE,
@@ -13,9 +9,6 @@ typedef enum {
     NODE_SEQ,
     NODE_REDIR,
     NODE_WORD,
-    NODE_DQUOTE,
-    NODE_QUOTE,
-	NODE_EQUAL
 } NodeType;
 
 typedef struct ASTNode {

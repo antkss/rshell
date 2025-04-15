@@ -25,9 +25,6 @@ ASTNode* new_node(NodeType type, const char *value, ASTNode *left, ASTNode *righ
 ASTNode* parse_word(TokenStream *ts) {
     char *tok = next(ts);
     if (!tok) return NULL;
-    if (tok[0] == '"') return new_node(NODE_DQUOTE, tok, NULL, NULL);
-    if (tok[0] == '\'') return new_node(NODE_QUOTE, tok, NULL, NULL);
-    if (tok[0] == '=') return new_node(NODE_EQUAL, tok, NULL, NULL);
     return new_node(NODE_WORD, tok, NULL, NULL);
 }
 
@@ -107,6 +104,7 @@ TokenStream* tokenize(const char *input) {
     TokenStream *ts = malloc(sizeof(TokenStream));
     ts->tokens = tokens;
     ts->count = 0;
+	ts->pos = 0;
 
     while (tok) {
         // Resize if needed
@@ -130,7 +128,7 @@ void print_ast(ASTNode *node, int indent) {
     for (int i = 0; i < indent; ++i) shell_print("  ");
     const char *type_str[] = {
         "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR",
-        "WORD", "DQUOTE", "QUOTE", "EQUAL"
+        "WORD"
     };
     shell_print("%s", type_str[node->type]);
     if (node->value) shell_print(": %s", node->value);

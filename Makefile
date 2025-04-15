@@ -1,7 +1,7 @@
 # ... (Existing Makefile content) ...
 # Compiler and flags
 CXX = gcc
-CXXFLAGS = -g 
+CXXFLAGS = -g -lreadline
 
 # Target executable name
 TARGET = rshell
