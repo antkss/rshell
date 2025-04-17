@@ -432,22 +432,8 @@ char *expand_variables(const char *input) {
     size_t i = 0, j = 0;
     char *home = getenv("HOME");
 
-    while (i < len) {
-        if (input[i] == '\\' && i + 1 < len) {
-            // Handle escape sequences
-            if (input[i + 1] == 'n') {
-                result[j++] = '\n';
-            } else if (input[i + 1] == 't') {
-                result[j++] = '\t';
-            } else if (input[i + 1] == '\\') {
-                result[j++] = '\\';
-            } else if (input[i + 1] == '$') {
-                result[j++] = '$';
-            } else {
-                result[j++] = input[i + 1]; // Keep other characters after backslash
-            }
-            i += 2; // Skip escaped character
-        } else if (input[i] == '~') {
+    while (input[i]) {
+		if (input[i] == '~') {
             // Handle tilde expansion (~ -> $HOME)
             if (i == 0 || input[i-1] == ' ' || input[i-1] == '\t' || input[i-1] == '=') {
                 // Only expand if it's at the start or after space/equals
@@ -460,7 +446,7 @@ char *expand_variables(const char *input) {
             } else {
                 result[j++] = input[i++];
             }
-        } else if (input[i] == '$' && isalpha(input[i + 1])) {
+        } else if (input[i] == '$' && isalpha(input[i + 1]) && input[i - 1] != '\\') {
             // Handle environment variable expansion
             i++; // skip '$'
 			size_t var_capacity = 0x100;

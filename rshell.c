@@ -10,6 +10,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "config.h"
+#include "complete.h"
 char *home = NULL;
 pid_t child_pid = -1;
 char *input;
@@ -40,35 +41,13 @@ void read_config() {
 	}
 
 }
-char *my_generator(const char *text, int state) {
-    static int list_index, len;
-    static const char *commands[] = {
-        "echo", "exit", "help", "clear", "cd", "ls", "cat", NULL
-    };
 
-    if (!state) {
-        list_index = 0;
-        len = strlen(text);
-    }
-
-    while (commands[list_index]) {
-        const char *cmd = commands[list_index++];
-        if (strncmp(cmd, text, len) == 0) {
-            return strdup(cmd);
-        }
-    }
-
-    return NULL;
-}
-char **my_completion(const char *text, int start, int end) {
-    // Optionally check position (e.g., start of line, after command, etc.)
-    rl_completion_append_character = ' '; // or '\0' to disable space
-
-    return rl_completion_matches(text, my_generator);
-}
 
 int main() {
 	rl_attempted_completion_function = my_completion;
+    for (int c = 32; c <= 126; ++c) {
+        rl_bind_key(c, key_logger);
+    }
 	home = getenv("HOME");
 	read_config();
 	shell_print("wellcome to my shell \n");
