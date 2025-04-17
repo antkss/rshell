@@ -2,6 +2,7 @@
 # Compiler and flags
 CXX = gcc
 CXXFLAGS = -g -lreadline
+# CXXFLAGS = -L/home/as/rshell/libs -lreadline -lhistory -lncurses
 
 # Target executable name
 TARGET = rshell
@@ -18,6 +19,7 @@ all: $(TARGET)
 # Default rule to build the target
 $(TARGET): $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ 
+	# patchelf --set-rpath ./libs $(TARGET)
 
 # Rule to compile .c files into .o files
 %.o: %.c $(HDR)

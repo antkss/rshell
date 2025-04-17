@@ -33,17 +33,42 @@ void read_config() {
 	char *config_path = malloc(strlen(home) + strlen(CONFIG_FILE_NAME) + 0x10);
 	sprintf(config_path, "%s/%s", home, CONFIG_FILE_NAME);
 	char *config_read = read_file(config_path, &read_size);
-	if (read_size < ARG_MAX) {
+	if (read_size < ARG_MAX && config_read) {
 		parse_call(config_read);
-
-	} else {
-		shell_print("too much config !!\n");
+		free(config_path);
+		free(config_read);
 	}
-	free(config_path);
-	free(config_read);
+
+}
+char *my_generator(const char *text, int state) {
+    static int list_index, len;
+    static const char *commands[] = {
+        "echo", "exit", "help", "clear", "cd", "ls", "cat", NULL
+    };
+
+    if (!state) {
+        list_index = 0;
+        len = strlen(text);
+    }
+
+    while (commands[list_index]) {
+        const char *cmd = commands[list_index++];
+        if (strncmp(cmd, text, len) == 0) {
+            return strdup(cmd);
+        }
+    }
+
+    return NULL;
+}
+char **my_completion(const char *text, int start, int end) {
+    // Optionally check position (e.g., start of line, after command, etc.)
+    rl_completion_append_character = ' '; // or '\0' to disable space
+
+    return rl_completion_matches(text, my_generator);
 }
 
 int main() {
+	rl_attempted_completion_function = my_completion;
 	home = getenv("HOME");
 	read_config();
 	shell_print("wellcome to my shell \n");
