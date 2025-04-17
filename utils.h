@@ -21,5 +21,5 @@ int is_folder_char(char c);
 
 int is_operator_char(char c);
 int is_redirection_char(char c);
-
+int find_pos_token(char **args, int argc, char *target, int cur_pos);
 int is_whitespace(char c);

@@ -379,4 +379,12 @@ int is_redirection_char(char c) {
 int is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n';
 }
+int find_pos_token(char **args, int argc, char *target, int cur_pos) {
+	for (int i = cur_pos; i < argc; i++) {
+		if (strcmp(args[i], "|") == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
 

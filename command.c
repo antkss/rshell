@@ -42,14 +42,7 @@ NEW_CMD(cd) {
     }
 	return 0;
 }
-int find_pos_token(char **args, int argc, char *target, int cur_pos) {
-	for (int i = cur_pos; i < argc; i++) {
-		if (strcmp(args[i], "|") == 0) {
-			return i;
-		}
-	}
-	return -1;
-}
+
 
 NEW_CMD(exit) {
 	exit(0);
