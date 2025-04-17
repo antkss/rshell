@@ -1,5 +1,6 @@
 #include "config.h"
-char *read_file(const char *filename) {
+char *read_file(const char *filename, size_t *read_size) {
+	*read_size = 0;
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         return NULL;
@@ -19,8 +20,8 @@ char *read_file(const char *filename) {
     }
 
     // Read the file
-    size_t read_size = fread(buffer, 1, size, fp);
-    buffer[read_size] = '\0'; // null-terminate it just in case
+    *read_size = fread(buffer, 1, size, fp);
+    buffer[*read_size] = '\0'; // null-terminate it just in case
 
     fclose(fp);
     return buffer;

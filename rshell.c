@@ -29,10 +29,16 @@ void handle_sigint(int sig) {
 }
 
 void read_config() {
+	size_t read_size;
 	char *config_path = malloc(strlen(home) + strlen(CONFIG_FILE_NAME) + 0x10);
 	sprintf(config_path, "%s/%s", home, CONFIG_FILE_NAME);
-	char *config_read = read_file(config_path);
-	parse_call(config_read, strlen(config_read));
+	char *config_read = read_file(config_path, &read_size);
+	if (read_size < ARG_MAX) {
+		parse_call(config_read);
+
+	} else {
+		shell_print("too much config !!\n");
+	}
 	free(config_path);
 	free(config_read);
 }
@@ -42,11 +48,12 @@ int main() {
 	read_config();
 	shell_print("wellcome to my shell \n");
 	signal(SIGINT, handle_sigint);
-
+	char *psi_set = getenv("PSI_RSHELL");
+	if (psi_set == NULL) psi_set = GENERIC_PSI;
     while ((input = readline(GENERIC_PSI)) != NULL) {
         if (*input) {
             add_history(input);  // Enable up/down arrow history
-			parse_call(input, strlen(input));
+			parse_call(input);
 			// shell_print("%s", input);
         }
         free(input);

@@ -1,10 +1,15 @@
 #include "parser.h"
+#include <linux/limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include "command.h"
+#include <fcntl.h>
+#include <readline/readline.h>
+#include "utils.h"
 
 char* peek(TokenStream *ts) {
     return ts->pos < ts->count ? ts->tokens[ts->pos] : NULL;
@@ -25,14 +30,21 @@ ASTNode* new_node(NodeType type, const char *value, ASTNode *left, ASTNode *righ
 ASTNode* parse_word(TokenStream *ts) {
     char *tok = next(ts);
     if (!tok) return NULL;
+	// if (strncmp(tok, "$", 1) == 0){
+	// 	char *value = getenv(strtok(tok, "$"));
+	// 	return new_node(NODE_WORD, value ? value : "", NULL, NULL);
+	// } 
     return new_node(NODE_WORD, tok, NULL, NULL);
 }
 
 ASTNode* parse_cmd(TokenStream *ts) {
     ASTNode *cmd = new_node(NODE_CMD, NULL, NULL, NULL);
     ASTNode *last = NULL;
-    while (peek(ts) && strcmp(peek(ts), "|") && strcmp(peek(ts), "&&") &&
-           strcmp(peek(ts), "||") && strcmp(peek(ts), ";") && strcmp(peek(ts), ">")) {
+    while (peek(ts) && strcmp(peek(ts), "|") && strcmp(peek(ts), "&&") 
+		&& strcmp(peek(ts), "||") && strcmp(peek(ts), ";")
+		&& strcmp(peek(ts), ">") && strcmp(peek(ts), "<")
+		&& strcmp(peek(ts), ">>")
+	) {
         ASTNode *w = parse_word(ts);
         if (!cmd->left) {
             cmd->left = w;
@@ -54,12 +66,30 @@ ASTNode* parse_pipeline(TokenStream *ts) {
     }
     return node;
 }
-ASTNode* parse_redir(TokenStream *ts) {
+ASTNode* parse_dredir(TokenStream *ts) {
     ASTNode *cmd = parse_pipeline(ts);
+    while (peek(ts) && strcmp(peek(ts), ">>") == 0) {
+        next(ts);  // consume '>>'
+        ASTNode *file = parse_word(ts);
+        cmd = new_node(NODE_DREDIR, NULL, cmd, file);
+    }
+    return cmd;
+}
+ASTNode* parse_redir_left(TokenStream *ts) {
+    ASTNode *cmd = parse_dredir(ts);
+    while (peek(ts) && strcmp(peek(ts), "<") == 0) {
+        next(ts);  // consume '<'
+        ASTNode *file = parse_word(ts);
+        cmd = new_node(NODE_REDIR_LEFT, NULL, cmd, file);
+    }
+    return cmd;
+}
+ASTNode* parse_redir_right(TokenStream *ts) {
+    ASTNode *cmd = parse_redir_left(ts);
     while (peek(ts) && strcmp(peek(ts), ">") == 0) {
         next(ts);  // consume '>'
         ASTNode *file = parse_word(ts);
-        cmd = new_node(NODE_REDIR, NULL, cmd, file);
+        cmd = new_node(NODE_REDIR_RIGHT, NULL, cmd, file);
     }
     return cmd;
 }
@@ -67,15 +97,15 @@ ASTNode* parse_redir(TokenStream *ts) {
 
 
 ASTNode* parse_and_or(TokenStream *ts) {
-    ASTNode *node = parse_redir(ts);
+    ASTNode *node = parse_redir_right(ts);
     while (peek(ts)) {
         if (strcmp(peek(ts), "&&") == 0) {
             next(ts);
-            ASTNode *right = parse_redir(ts);
+            ASTNode *right = parse_redir_right(ts);
             node = new_node(NODE_AND, NULL, node, right);
         } else if (strcmp(peek(ts), "||") == 0) {
             next(ts);
-            ASTNode *right = parse_redir(ts);
+            ASTNode *right = parse_redir_right(ts);
             node = new_node(NODE_OR, NULL, node, right);
         } else {
             break;
@@ -94,40 +124,120 @@ ASTNode* parse_sequence(TokenStream *ts) {
     return node;
 }
 
-TokenStream* tokenize(const char *input) {
-    char *copy = strdup(input);
-    char *tok = strtok(copy, " ");
-    
-    int capacity = 8;  // Start small and grow
-    char **tokens = malloc(sizeof(char*) * capacity);
-    
-    TokenStream *ts = malloc(sizeof(TokenStream));
-    ts->tokens = tokens;
-    ts->count = 0;
-	ts->pos = 0;
 
-    while (tok) {
-        // Resize if needed
-        if (ts->count >= capacity) {
-            capacity *= 2;
-            tokens = realloc(tokens, sizeof(char*) * capacity);
-            ts->tokens = tokens;
+
+TokenStream *tokenize(char *input) {
+    TokenStream *ts = malloc(sizeof(TokenStream));
+	int capacity = 8;
+    ts->tokens = malloc(sizeof(char *) * capacity);
+    ts->count = 0;
+    ts->pos = 0;
+
+    int i = 0, len = strlen(input);
+    int in_single_quote = 0;
+    int in_double_quote = 0;
+    int in_backtick = 0;
+    int escaped = 0;
+    int nested_subs = 0;
+
+    char token[ARG_MAX];
+	// if (len > ARG_MAX) {
+	// 	shell_print("too much tokens \n");
+	// }
+    int token_len = 0;
+
+    while (i < len) {
+        char c = input[i];
+        char next = (i + 1 < len) ? input[i + 1] : '\0';
+		// handle memory
+		if (ts->count > capacity - 4) {
+			capacity = capacity * 2;
+			ts->tokens = realloc(ts->tokens, sizeof(char *) * capacity);
+		}
+        // Handle comment outside quotes
+        if (!in_single_quote && !in_double_quote && !in_backtick && c == '#') {
+            break; // Skip rest of the line
         }
 
-        tokens[ts->count++] = strdup(tok);
-        tok = strtok(NULL, " ");
+        if (escaped) {
+            token[token_len++] = c;
+            escaped = 0;
+        } else if (c == '\\') {
+            if (in_single_quote) {
+                token[token_len++] = c; // literal in single quotes
+            } else {
+                escaped = 1;
+            }
+        } else if (c == '\'' && !in_double_quote && !in_backtick) {
+            in_single_quote = !in_single_quote;
+        } else if (c == '"' && !in_single_quote && !in_backtick) {
+            in_double_quote = !in_double_quote;
+        } else if (c == '`' && !in_single_quote && !in_double_quote) {
+            in_backtick = !in_backtick;
+            token[token_len++] = c;
+        } else if (!in_single_quote && !in_double_quote && !in_backtick && c == '$' && next == '(') {
+            token[token_len++] = c;
+            token[token_len++] = '(';
+            i += 2;
+            nested_subs = 1;
+            while (i < len && nested_subs > 0) {
+                if (input[i] == '(') nested_subs++;
+                else if (input[i] == ')') nested_subs--;
+                token[token_len++] = input[i++];
+            }
+            i--;
+        } else if (!in_single_quote && !in_double_quote && !in_backtick && c == '$' && next == '(' && input[i + 2] == '(') {
+            token[token_len++] = '$';
+            token[token_len++] = '(';
+            token[token_len++] = '(';
+            i += 3;
+            nested_subs = 2;
+            while (i < len && nested_subs > 0) {
+                if (input[i] == '(') nested_subs++;
+                else if (input[i] == ')') nested_subs--;
+                token[token_len++] = input[i++];
+            }
+            i--;
+        } else if (!in_single_quote && !in_double_quote && !in_backtick && is_operator_char(c)) {
+            if (token_len > 0) {
+                token[token_len] = '\0';
+                ts->tokens[ts->count++] = strdup(token);
+                token_len = 0;
+            }
+
+            token[token_len++] = c;
+            if ((c == '&' && next == '&') || (c == '|' && next == '|') || (c == '>' && next == '>')) {
+                token[token_len++] = next;
+                i++;
+            }
+            token[token_len] = '\0';
+            ts->tokens[ts->count++] = strdup(token);
+            token_len = 0;
+        } else if (!in_single_quote && !in_double_quote && !in_backtick && is_whitespace(c)) {
+            if (token_len > 0) {
+                token[token_len] = '\0';
+                ts->tokens[ts->count++] = strdup(token);
+                token_len = 0;
+            }
+        } else {
+            token[token_len++] = c;
+        }
+        i++;
     }
 
-    tokens[ts->count] = NULL;  // Null-terminate the token list
-    free(copy);
+    if (token_len > 0) {
+        token[token_len] = '\0';
+        ts->tokens[ts->count++] = strdup(token);
+    }
+
+    ts->tokens[ts->count] = NULL;
     return ts;
 }
-
 void print_ast(ASTNode *node, int indent) {
     if (!node) return;
     for (int i = 0; i < indent; ++i) shell_print("  ");
     const char *type_str[] = {
-        "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR",
+        "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR RIGHT", "REDIR LEFT","NODE DREDIR",
         "WORD"
     };
     shell_print("%s", type_str[node->type]);
@@ -135,6 +245,11 @@ void print_ast(ASTNode *node, int indent) {
     shell_print("\n");
     print_ast(node->left, indent + 2);
     print_ast(node->right, indent + 2);
+}
+void print_tokens(TokenStream *ts) {
+	for (int i = 0; i < ts->count; i++) {
+		shell_print("token[%d]: %s \n", i, ts->tokens[i]);
+	}
 }
 int eval_ast(ASTNode *node) {
     if (!node) return 1;
@@ -149,12 +264,6 @@ int eval_ast(ASTNode *node) {
                 curr = curr->right;
             }
             if (argc == 0) return 1;
-			for (int i = 0; i < argc; i++) {
-				if (!strncmp(argv[i], "=", 1)) {
-					setenv(argv[0], argv[i + 1], 1);
-					return 0;
-				}
-			}
 
             call_command(argv[0], argv, argc);
             return 0;
@@ -177,7 +286,7 @@ int eval_ast(ASTNode *node) {
             return eval_ast(node->right);
         }
 
-        case NODE_REDIR: {
+        case NODE_REDIR_RIGHT: {
             int saved_stdout = dup(STDOUT_FILENO);
             FILE *fp = fopen(node->right->value, "w");
             if (!fp) {
@@ -192,7 +301,36 @@ int eval_ast(ASTNode *node) {
             fclose(fp);
             return res;
         }
-
+		case NODE_DREDIR: {
+            int saved_stdout = dup(STDOUT_FILENO);
+            FILE *fp = fopen(node->right->value, "a");
+            if (!fp) {
+                perror("fopen");
+                return 1;
+            }
+            dup2(fileno(fp), STDOUT_FILENO);
+            int res = eval_ast(node->left);
+            fflush(stdout);
+            dup2(saved_stdout, STDOUT_FILENO);
+            close(saved_stdout);
+            fclose(fp);
+			return 0;		
+		}
+        case NODE_REDIR_LEFT: {
+			int fd = open(node->right->value, O_RDONLY);
+			if (fd < 0) {
+				perror("open");
+			}
+            pid_t pid2 = fork();
+            if (pid2 == 0) {
+                dup2(fd, STDIN_FILENO);
+				close(fd);
+                eval_ast(node->left);
+                exit(0);
+            }
+            waitpid(pid2, NULL, 0);
+			return 0;
+        }
         case NODE_PIPE: {
             int pipefd[2];
             pipe(pipefd);
@@ -266,12 +404,18 @@ char **extract_line(const char *input, int *line_cnt) {
             lines = realloc(lines, sizeof(char*) * capacity);
         }
 		lines[*line_cnt] = strdup(line);
-		line = strtok(NULL, "\n");
 		*line_cnt += 1;
+		line = strtok(NULL, "\n");
+
 		
 	}
 	free(copy);
 	return lines;
+}
+void print_lines(char **lines, int line_cnt) {
+	for (int i = 0; i < line_cnt; i++) {
+		shell_print("lines[%d] = %s \n", i, lines[i]);
+	}
 }
 void free_lines(char **lines, int line_cnt) {
 	for (int i = 0; i < line_cnt; i++) {
@@ -279,18 +423,96 @@ void free_lines(char **lines, int line_cnt) {
 	}
 	free(lines);
 }
-void parse_call(char *input, int input_len) {
+char *expand_variables(const char *input) {
+    size_t len = strlen(input);
+	size_t capacity = len * 2;
+    char *result = malloc(capacity); // Allocate more space for safety
+    if (!result) return NULL;
+
+    size_t i = 0, j = 0;
+    char *home = getenv("HOME");
+
+    while (i < len) {
+        if (input[i] == '\\' && i + 1 < len) {
+            // Handle escape sequences
+            if (input[i + 1] == 'n') {
+                result[j++] = '\n';
+            } else if (input[i + 1] == 't') {
+                result[j++] = '\t';
+            } else if (input[i + 1] == '\\') {
+                result[j++] = '\\';
+            } else if (input[i + 1] == '$') {
+                result[j++] = '$';
+            } else {
+                result[j++] = input[i + 1]; // Keep other characters after backslash
+            }
+            i += 2; // Skip escaped character
+        } else if (input[i] == '~') {
+            // Handle tilde expansion (~ -> $HOME)
+            if (i == 0 || input[i-1] == ' ' || input[i-1] == '\t' || input[i-1] == '=') {
+                // Only expand if it's at the start or after space/equals
+                if (home) {
+                    size_t home_len = strlen(home);
+                    memcpy(result + j, home, home_len);
+                    j += home_len;
+                }
+                i++; // Skip tilde
+            } else {
+                result[j++] = input[i++];
+            }
+        } else if (input[i] == '$' && isalpha(input[i + 1])) {
+            // Handle environment variable expansion
+            i++; // skip '$'
+			size_t var_capacity = 0x100;
+			char *var = malloc(0x100);
+			var[0] = '\0';
+            int k = 0;
+
+            while (isalnum(input[i]) || input[i] == '_') {
+				if (k > var_capacity) {
+					var_capacity = var_capacity * 2;
+					var = realloc(var, var_capacity);
+				}
+                var[k++] = input[i++];
+            }
+            var[k] = '\0';
+
+            char *val = getenv(var);
+			free(var);
+            if (val) {
+                size_t vlen = strlen(val);
+                memcpy(result + j, val, vlen);
+                j += vlen;
+            }
+        } else {
+            result[j++] = input[i++]; // Copy other characters as is
+        }
+		if (j > capacity) {
+			capacity = capacity * 2;
+			result = realloc(result, capacity);
+		}
+    }
+
+    result[j] = '\0';
+    return result;
+}
+void parse_call(char *input) {
 	int line_cnt;
 	char **lines = extract_line(input, &line_cnt);
+	// print_lines(lines, line_cnt);
 	for (int i = 0; i < line_cnt; i++) {
-		TokenStream *ts = tokenize(lines[i]);
+		char *newline = expand_variables(lines[i]);
+		TokenStream *ts = tokenize(newline);
+		// print_tokens(ts);
 		ASTNode *root = parse_sequence(ts);
-		eval_ast(root);
-		free_tokens(ts);
-		free_ast(root);
+		if (root) {
+			eval_ast(root);
+			free(newline);
+			// print_ast(root, 3);
+			free_tokens(ts);
+			free_ast(root);
+		}
+
 	}
-
-	// print_ast(root, 3);
-
 	free_lines(lines, line_cnt);
 }

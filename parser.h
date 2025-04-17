@@ -7,7 +7,9 @@ typedef enum {
     NODE_AND,
     NODE_OR,
     NODE_SEQ,
-    NODE_REDIR,
+    NODE_REDIR_RIGHT,
+    NODE_REDIR_LEFT,
+	NODE_DREDIR,
     NODE_WORD,
 } NodeType;
 
@@ -30,11 +32,13 @@ char* next(TokenStream *ts);
 
 ASTNode* parse_cmd(TokenStream *ts);
 ASTNode* parse_pipeline(TokenStream *ts);
-ASTNode* parse_redir(TokenStream *ts);
+ASTNode* parse_redir_right(TokenStream *ts);
+ASTNode* parse_redir_left(TokenStream *ts);
 ASTNode* parse_and_or(TokenStream *ts);
 ASTNode* parse_sequence(TokenStream *ts);
-TokenStream *tokenize(const char *input);
+TokenStream *tokenize(char *input);
 void print_ast(ASTNode *node, int indent);
-void parse_call(char *input, int input_len);
+void parse_call(char *input);
 char *concat_tokens(TokenStream *ts);
+void print_tokens(TokenStream *ts);
                

@@ -14,107 +14,10 @@
 #include "parser.h"
 #include <stdarg.h>
 #include "terminal.h"
-
-#define READ_BYTES 4096
+#include "utils.h"
 extern char **environ;
 extern pid_t child_pid;
 
-enum {
-	FOLDER, 
-	REGULAR_FILE, 
-	UNKNOWN,
-};
-mode_t get_perm(const char *filename) {
-    struct stat st;
-    if (stat(filename, &st) == -1) {
-        perror("stat");
-        return (mode_t)-1;
-    }
-    return st.st_mode & 0777;
-}
-int parse_option(char **args, int argc, char **option) {
-	int option_cnt = 0;
-	for (int i = 1; i < argc; i++) {
-		if (!strncmp(args[i], "-", 1)) {
-			// shell_print("option parsed ! %s\n", args[i]);
-			if(!is_exist(args[i], option, option_cnt)) {
-				option[option_cnt] = args[i];
-				args[i] = NULL;
-				option_cnt++;
-			}
-
-		}
-	}
-	return option_cnt;
-}
-void print_sign(char sign[]) {
-	write(STDOUT_FILENO, sign, strlen(sign));
-}
-int is_dir(char *path) {
-    struct stat st;
-    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
-        return 1;
-    return 0;
-}
-
-void shell_print(const char *format, ...) {
-    va_list args;
-    fflush(stdout);            // Flush before printing
-    va_start(args, format);    // Start variadic argument processing
-    vprintf(format, args);     // Print using the format string
-    va_end(args);              // Clean up
-    fflush(stdout);            // Flush after printing
-}
-
-// char* mstrcat(int count, ...) {
-//     va_list args;
-//     va_start(args, count);
-// 	int total = 0;
-// 	char **buf_list = malloc(sizeof(char*) * count);
-// 	for (int i = 0; i < count; i++) {
-//         char *buf = va_arg(args, char *);
-// 		buf_list[i] = buf;
-// 		total += strlen(buf);
-// 	}
-// 	char *cat_buf = malloc(total + 0x10);
-//     for (int i = 0; i < count; ++i) {
-// 		strcat(cat_buf, buf_list[i]);
-//     }
-//     va_end(args);
-// 	return cat_buf;
-// }
-int check_path(const char *path) {
-    struct stat st;
-    if (stat(path, &st) == 0) {
-        if (S_ISDIR(st.st_mode)) {
-			return FOLDER;
-        } else if (S_ISREG(st.st_mode)) {
-			return REGULAR_FILE;
-        } else {
-			return UNKNOWN;
-        }
-    } else {
-		return -1;
-    }
-	return -2;
-}
-int is_exist(char *buffer, char *buff_array[], int count) {
-    for (int i = 0; i < count; i++) {
-        if (strcmp(buffer, buff_array[i]) == 0) {
-            return 1; // buffer already exists in the array
-        }
-    }
-    return 0;
-}
-
-int is_file_exist(char *path) {
-	FILE *file = fopen(path, "r");
-    if (file) {
-        fclose(file);
-		return 1;
-    } 
-    return 0;
-}
 NEW_CMD(clear) {
 	shell_print("\033c");
 	return 0;
@@ -122,6 +25,7 @@ NEW_CMD(clear) {
 NEW_CMD(cd) {
     // If no path provided, default to HOME
 	char *path = args[1];
+
     if (path == NULL) {
         path = getenv("HOME");  // Get home directory from environment
         if (path == NULL) {
@@ -129,7 +33,9 @@ NEW_CMD(cd) {
             return -1;
         }
     }
-
+	if (!strcmp(path, "-")) {
+		path = getenv("OLDPWD");
+	}
     // Change directory
     if (chdir(path) != 0) {
         perror("cd failed");  // Print error
@@ -148,84 +54,7 @@ int find_pos_token(char **args, int argc, char *target, int cur_pos) {
 NEW_CMD(exit) {
 	exit(0);
 }
-void pretty_print_list(char *files[], const char *path, int file_count, int is_all) {
-	char full_path[PATH_MAX];
 
-
-
-    // Step 1: Get longest file name
-    int max_len = 0;
-    for (int i = 0; i < file_count; i++) {
-		if (files[i] != NULL) {
-			int len = strlen(files[i]);
-			if (len > max_len)
-				max_len = len;
-		}
-
-    }
-
-    // Add spacing (e.g. 2 spaces between columns)
-    int col_width = max_len + 2;
-
-    // Step 2: Get terminal width and number of columns
-    int term_width = get_terminal_size().ws_col;
-    int num_cols = term_width / col_width;
-    if (num_cols < 1) num_cols = 1;
-
-    // Step 3: Print in column-major order
-    int num_rows = (file_count + num_cols - 1) / num_cols;
-    for (int row = 0; row < num_rows; row++) {
-        for (int col = 0; col < num_cols; col++) {
-            int idx = col * num_rows + row;
-            if (idx < file_count) {
-				if (strncmp(files[idx], ".", 1) || is_all) {
-					snprintf(full_path, sizeof(full_path), "%s/%s", path, files[idx]);
-					struct stat st;
-					if (stat(full_path, &st) == 0) {
-						if (S_ISDIR(st.st_mode)) {
-							shell_print("%s%-*s%s", COLOR_BLUE, col_width, files[idx], COLOR_RESET);
-						} else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-							shell_print("%s%-*s%s", COLOR_GREEN, col_width, files[idx], COLOR_RESET);
-						} else {
-							shell_print("%s%-*s%s", COLOR_RESET, col_width, files[idx], COLOR_RESET);
-						}
-					} else {
-						shell_print("%-*s", col_width, files[idx]);
-					}
-				}
-
-			}
-
-        }
-        shell_print("\n");
-    }
-
-}
-int get_list_files(const char *path, char* content[], int *count) {
-    DIR *dir ;
-	if (path == NULL) return -1;
-	dir = opendir(path);
-    if (dir == NULL) {
-        perror("opendir failed");
-        return -1;
-    }
-
-    struct dirent *entry;
-    int first = 1;
-
-	*count = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-			unsigned int size = strlen(entry->d_name);
-			content[*count] = malloc(size + 0x10);
-			memset(content[*count], 0, size + 10);
-			strncpy(content[*count], entry->d_name, size);
-			*count += 1;
-        }
-    }
-    closedir(dir);
-	return 0;
-}
 NEW_CMD(ls){
 	char *content[XATTR_LIST_MAX];
 	int count = 0;
@@ -238,7 +67,7 @@ NEW_CMD(ls){
 		if (!strncmp(option[i], "-a", 2)) {
 			is_all = 1;
 		} else {
-			shell_print("Invalid option: %s", option[i]);
+			shell_print("Invalid option: %s \n", option[i]);
 			return -1;
 		}
 	}
@@ -248,6 +77,7 @@ NEW_CMD(ls){
 		// shell_print("%s \n", path);
 		if (path == NULL) path = ".";
 		value = get_list_files(path, content, &count);
+		sort_files(content, count);
 		pretty_print_list(content, path, count, is_all);
 		for (int i = 0; i < count; i++) {
 			free(content[i]);
@@ -259,6 +89,7 @@ NEW_CMD(ls){
 			shell_print("%s: \n", path);
 			if (path != NULL) {
 				value = get_list_files(path, content, &count);
+				sort_files(content, count);
 				pretty_print_list(content, path, count, is_all);
 				for (int i = 0; i < count; i++) {
 					free(content[i]);
@@ -274,6 +105,14 @@ NEW_CMD(ls){
 NEW_CMD(cat) {
 	// printf("number of files %d\n", argc);
 	char buff[READ_BYTES + 0x10];
+	if (argc == 1) {
+		int read_size = 0;
+		while ((read_size = read(0, buff, READ_BYTES)) != 0) {
+			buff[read_size] = 0;
+			shell_print("%s", buff);
+		}
+		return 0;
+	}
 	for (int i = 1; i < argc; i++) {
 		if (!is_dir(args[i])) {
 			int fd = open(args[i], O_RDONLY);
@@ -347,80 +186,7 @@ NEW_CMD(touch) {
 	}
 	return 0;
 }
-int copy_recursive(char *path) {
-    if (is_dir(path)) {
-        DIR *dir = opendir(path);
-        if (!dir) {
-            perror("opendir");
-            return -1;
-        }
 
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL) {
-			char *object = entry->d_name;
-			if (check_path(object) == FOLDER) {
-			}
-        }
-
-        closedir(dir);
-
-        // Remove the now-empty directory
-        if (rmdir(path) != 0) {
-            perror("rmdir");
-			return -1;
-        }
-    } else {
-        // It's a file; just remove it
-        if (remove(path) != 0) {
-            perror("remove");
-			return -1;
-        }
-    }
-	return 0;
-}
-int remove_recursive(char *path) {
-    if (is_dir(path)) {
-        DIR *dir = opendir(path);
-        if (!dir) {
-            perror("opendir");
-            return -1;
-        }
-
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            // Skip "." and ".."
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                continue;
-
-            char fullpath[PATH_MAX];
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
-
-            if (is_dir(fullpath)) {
-                remove_recursive(fullpath); // Recurse into subdirectory
-            } else {
-                if (remove(fullpath) != 0) {
-                    perror("remove");
-					return -1;
-                }
-            }
-        }
-
-        closedir(dir);
-
-        // Remove the now-empty directory
-        if (rmdir(path) != 0) {
-            perror("rmdir");
-			return -1;
-        }
-    } else {
-        // It's a file; just remove it
-        if (remove(path) != 0) {
-            perror("remove");
-			return -1;
-        }
-    }
-	return 0;
-}
 
 NEW_CMD(rm) {
 	char *option[6];
@@ -460,38 +226,7 @@ NEW_CMD(rm) {
 	}
 	return 0;
 }
-int copy_file(char *oldpath, char *newpath) {
-	int src_fd = open(oldpath, O_RDONLY);
-	if (src_fd < 0) {
-		perror("cp: src");
-		return -1;
-	}
-	int dest_fd = open(newpath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (dest_fd < 0) {
-		perror("cp: dest");
-		return -1;
-	}
 
-	char buffer[READ_BYTES];
-	ssize_t bytes_read;
-
-	while ((bytes_read = read(src_fd, buffer, sizeof(buffer))) > 0) {
-		ssize_t bytes_written = write(dest_fd, buffer, bytes_read);
-		if (bytes_written != bytes_read) {
-			perror("cp: write error");
-			return -1;
-		}
-	}
-	if (bytes_read < 0) {
-		perror("cp: read error");
-		return -1;
-	}
-	mode_t perm = get_perm(oldpath);
-	chmod(newpath, perm);
-	close(src_fd);
-	close(dest_fd);
-	return 0;
-}
 NEW_CMD(cp) {
     if (argc < 3) {
         fprintf(stderr, "Usage: cp <source> <destination>\n");
@@ -517,7 +252,7 @@ NEW_CMD(cp) {
 		if (!is_file_exist(args[2]))
 			value = copy_file(args[1], args[2]);
 		else 
-			shell_print("file exists, skipping !");
+			shell_print("file exists, skipping ! \n");
 	}
 
 	return value;
@@ -618,7 +353,8 @@ help_entry help_table []  = {
 	{"echo", "echo text"},
 	{"chmod", "change permission of an object"},
 	{"mv", "move file or change file name"},
-	{"set", "manage environment variable"},
+	{"set", "set environment variable"},
+	{"unset", "unset environment variable"},
 	{"antivirus", "antivirus by FBI"},
 	{"help", "help me bro !"},
 };
@@ -641,14 +377,34 @@ NEW_CMD(set) {
 		for (int i = 1; i < argc; i++) {
 			char *phrase = args[i];
 			char *name = strtok(phrase, "=");
-			char *value = strtok(NULL, "=");
-			if (value == NULL) {
-				value = "";
+			if (is_valid_env_var(name)) {
+				char *value = strtok(NULL, "=");
+				if (value == NULL) {
+					value = "";
+				}
+				setenv(name, value, 1);
+			} else {
+				shell_print("invalid environ name ! \n");
 			}
-			setenv(name, value, 1);
+
 		}
 	}
 
+	return 0;
+}
+NEW_CMD(unset) {
+	if (argc == 1) {
+		for (int i = 0; environ[i] != NULL; i++) {
+			shell_print("%s", environ[i]);
+			shell_print("\n");
+		}
+		return 0;
+	} else {
+		for (int i = 1; i < argc; i++) {
+			char *name = args[i];
+			unsetenv(name);
+		}
+	}
 	return 0;
 }
 CommandEntry command_table[] = {
@@ -666,20 +422,22 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(mv),
 	CMD_ENTRY(antivirus),
 	CMD_ENTRY(help),
-	CMD_ENTRY(set)
+	CMD_ENTRY(set),
+	CMD_ENTRY(unset)
 };
 int call_command(const char *cmd, char **args, int argc) {
 	// run builtin command first
 	for (int i = 0; i < NUM_COMMANDS; ++i) {
 		if (strcmp(command_table[i].name, cmd) == 0) {
 			command_table[i].fn(args, argc);
-			return 1;
+			return EXIT_SUCCESS;
 		}
 	}
 	child_pid = fork();
-    if (child_pid == 0) {
+	if (child_pid == 0) {
 		// call command from system
         execvp(args[0], args);
+		shell_print("command: %s \n", args[0]);
         perror("execvp");
 		exit(EXIT_FAILURE);
     } else if (child_pid > 0) {
