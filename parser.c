@@ -40,7 +40,7 @@ ASTNode* parse_cmd(TokenStream *ts) {
     while (peek(ts) && strcmp(peek(ts), "|") && strcmp(peek(ts), "&&") 
 		&& strcmp(peek(ts), "||") && strcmp(peek(ts), ";")
 		&& strcmp(peek(ts), ">") && strcmp(peek(ts), "<")
-		&& strcmp(peek(ts), ">>")
+		&& strcmp(peek(ts), ">>") && strcmp(peek(ts), "<<<")
 	) {
         ASTNode *w = parse_word(ts);
         if (!cmd->left) {
@@ -63,8 +63,17 @@ ASTNode* parse_pipeline(TokenStream *ts) {
     }
     return node;
 }
-ASTNode* parse_dredir(TokenStream *ts) {
+ASTNode* parse_tredir(TokenStream *ts) {
     ASTNode *cmd = parse_pipeline(ts);
+    while (peek(ts) && strcmp(peek(ts), "<<<") == 0) {
+        next(ts);  // consume '<<<'
+        ASTNode *file = parse_word(ts);
+        cmd = new_node(NODE_TREDIR, NULL, cmd, file);
+    }
+    return cmd;
+}
+ASTNode* parse_dredir(TokenStream *ts) {
+    ASTNode *cmd = parse_tredir(ts);
     while (peek(ts) && strcmp(peek(ts), ">>") == 0) {
         next(ts);  // consume '>>'
         ASTNode *file = parse_word(ts);
@@ -143,7 +152,8 @@ TokenStream *tokenize(char *input) {
     while (input[i]) {
         char c = input[i];
         char next = input[i + 1] ? input[i + 1] : '\0';
-		token = ralloc(token, &token_capacity, token_len + 12); // hope that my count is tight
+        char next_next = input[i + 2] ? input[i + 2] : '\0';
+		token = ralloc(token, &token_capacity, token_len + 14); // hope that my count is tight
         // Handle comment outside quotes
         if (!in_single_quote && !in_double_quote && !in_backtick && c == '#') {
             break; // Skip rest of the line
@@ -203,6 +213,11 @@ TokenStream *tokenize(char *input) {
                 token[token_len++] = next; // count 2
                 i++;
             }
+			if ((c == '<' && next == '<' && next_next == '<')) {
+				token[token_len++] = c; // count 12
+				token[token_len++] = next; // count 13
+				i += 2;
+			}
             token[token_len] = '\0';
 			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
             ts->tokens[ts->count++] = strdup(token);
@@ -234,7 +249,7 @@ void print_ast(ASTNode *node, int indent) {
     if (!node) return;
     for (int i = 0; i < indent; ++i) shell_print("  ");
     const char *type_str[] = {
-        "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR RIGHT", "REDIR LEFT","NODE DREDIR",
+        "CMD", "PIPE", "AND", "OR", "SEQ", "REDIR RIGHT", "REDIR LEFT","NODE DREDIR","NODE TREDIR",
         "WORD"
     };
     shell_print("%s", type_str[node->type]);
@@ -314,6 +329,27 @@ int eval_ast(ASTNode *node) {
             close(saved_stdout);
             close(fd);
 			return 0;		
+		}
+		case NODE_TREDIR: {
+			int pipefd[2];
+			pipe(pipefd);
+
+			pid_t pid = fork();
+			if (pid == 0) {
+				// CHILD: Run the left command with redirected stdin
+				close(pipefd[1]);
+				dup2(pipefd[0], STDIN_FILENO);
+				close(pipefd[0]);
+				eval_ast(node->left);
+				exit(0);
+			} else {
+				// PARENT: Write the here-string (right node is a literal string)
+				close(pipefd[0]);
+				write(pipefd[1], node->right->value, strlen(node->right->value));
+				close(pipefd[1]);
+				waitpid(pid, NULL, 0);
+			}
+			return 0;
 		}
         case NODE_REDIR_LEFT: {
 			if (!node->right) return 1;
@@ -399,9 +435,8 @@ char **extract_line(const char *input) {
 	char *line = strtok(copy, "\n");
 	size_t line_cnt = 0;
 	while (line) {
-		lines = ralloc(lines, &capacity, line_cnt + 1);
-		lines[line_cnt] = strdup(line);
-		line_cnt += 1;
+		lines = ralloc(lines, &capacity, line_cnt * sizeof(char *) + 1);
+		lines[line_cnt++] = strdup(line);
 		line = strtok(NULL, "\n");
 	}
 	lines[line_cnt] = NULL;
@@ -483,17 +518,16 @@ char *expand_variables(const char *input) {
 }
 void parse_call(char *input) {
 	char **lines = extract_line(input);
-	// print_lines(lines, line_cnt);
 	for (int i = 0; lines[i]; i++) {
 		char *newline = expand_variables(lines[i]);
 		TokenStream *ts = tokenize(newline);
 		// shell_print("lines: %s \n",lines[i]);
 		// print_tokens(ts);
 		ASTNode *root = parse_sequence(ts);
+		// print_ast(root, 3);
 		if (root) {
 			eval_ast(root);
 			free(newline);
-			// print_ast(root, 3);
 			free_tokens(ts);
 			free_ast(root);
 		}

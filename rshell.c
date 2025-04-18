@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include "parser.h"
 #include <readline/readline.h>
@@ -59,6 +60,10 @@ int main(int argc, char *args[]) {
 				return 1;
 		}
 	}
+	if (remote > 0) {
+		int sock = socket(AF_INET, SOCK_STREAM, 0);  // TCP
+		return 0;
+	}
 	if (argc == 1) {
 		rl_attempted_completion_function = my_completion;
 		// for (int c = 32; c <= 126; ++c) {
@@ -80,7 +85,6 @@ int main(int argc, char *args[]) {
 			input = NULL;
 		}
 	} else {
-
 			for (int i = 1; i < argc; i++) {
 				if (args[i]) {
 					parse_call(args[i]);

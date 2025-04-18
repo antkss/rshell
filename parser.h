@@ -10,6 +10,7 @@ typedef enum {
     NODE_REDIR_RIGHT,
     NODE_REDIR_LEFT,
 	NODE_DREDIR,
+	NODE_TREDIR,
     NODE_WORD,
 } NodeType;
 
