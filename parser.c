@@ -125,12 +125,11 @@ ASTNode* parse_sequence(TokenStream *ts) {
 
 TokenStream *tokenize(char *input) {
     TokenStream *ts = malloc(sizeof(TokenStream));
-	int capacity = 8;
-    ts->tokens = malloc(sizeof(char *) * capacity);
+	size_t capacity = sizeof(char *) * 8;
+    ts->tokens = malloc(capacity);
     ts->count = 0;
     ts->pos = 0;
-
-    int i = 0, len = strlen(input);
+    int i = 0;
     int in_single_quote = 0;
     int in_double_quote = 0;
     int in_backtick = 0;
@@ -138,19 +137,11 @@ TokenStream *tokenize(char *input) {
     int nested_subs = 0;
 
     char token[ARG_MAX];
-	// if (len > ARG_MAX) {
-	// 	shell_print("too much tokens \n");
-	// }
     int token_len = 0;
 
-    while (i < len) {
+    while (input[i]) {
         char c = input[i];
-        char next = (i + 1 < len) ? input[i + 1] : '\0';
-		// handle memory
-		if (ts->count > capacity - 4) {
-			capacity = capacity * 2;
-			ts->tokens = realloc(ts->tokens, sizeof(char *) * capacity);
-		}
+        char next = input[i + 1] ? input[i + 1] : '\0';
         // Handle comment outside quotes
         if (!in_single_quote && !in_double_quote && !in_backtick && c == '#') {
             break; // Skip rest of the line
@@ -177,7 +168,7 @@ TokenStream *tokenize(char *input) {
             token[token_len++] = '(';
             i += 2;
             nested_subs = 1;
-            while (i < len && nested_subs > 0) {
+            while (input[i] && nested_subs > 0) {
                 if (input[i] == '(') nested_subs++;
                 else if (input[i] == ')') nested_subs--;
                 token[token_len++] = input[i++];
@@ -189,7 +180,7 @@ TokenStream *tokenize(char *input) {
             token[token_len++] = '(';
             i += 3;
             nested_subs = 2;
-            while (i < len && nested_subs > 0) {
+            while (input[i] && nested_subs > 0) {
                 if (input[i] == '(') nested_subs++;
                 else if (input[i] == ')') nested_subs--;
                 token[token_len++] = input[i++];
@@ -198,6 +189,7 @@ TokenStream *tokenize(char *input) {
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_operator_char(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
+				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
                 ts->tokens[ts->count++] = strdup(token);
                 token_len = 0;
             }
@@ -208,11 +200,13 @@ TokenStream *tokenize(char *input) {
                 i++;
             }
             token[token_len] = '\0';
+			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
             ts->tokens[ts->count++] = strdup(token);
             token_len = 0;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_whitespace(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
+				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
                 ts->tokens[ts->count++] = strdup(token);
                 token_len = 0;
             }
@@ -224,6 +218,7 @@ TokenStream *tokenize(char *input) {
 
     if (token_len > 0) {
         token[token_len] = '\0';
+		ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
         ts->tokens[ts->count++] = strdup(token);
     }
 
@@ -392,23 +387,19 @@ void free_tokens(TokenStream *ts) {
     free(ts->tokens);
     free(ts);
 }
-char **extract_line(const char *input, int *line_cnt) {
-    int capacity = 8;  // Start small and grow
-    char **lines = malloc(sizeof(char*) * capacity);
+char **extract_line(const char *input) {
+    size_t capacity = sizeof(char*) * 8;  // Start small and grow
+    char **lines = malloc(capacity);
 	char *copy = strdup(input);
 	char *line = strtok(copy, "\n");
-	*line_cnt = 0;
+	size_t line_cnt = 0;
 	while (line) {
-        if (*line_cnt >= capacity) {
-            capacity *= 2;
-            lines = realloc(lines, sizeof(char*) * capacity);
-        }
-		lines[*line_cnt] = strdup(line);
-		*line_cnt += 1;
+		lines = ralloc(lines, &capacity, line_cnt + 1);
+		lines[line_cnt] = strdup(line);
+		line_cnt += 1;
 		line = strtok(NULL, "\n");
-
-		
 	}
+	lines[line_cnt] = NULL;
 	free(copy);
 	return lines;
 }
@@ -417,22 +408,18 @@ void print_lines(char **lines, int line_cnt) {
 		shell_print("lines[%d] = %s \n", i, lines[i]);
 	}
 }
-void free_lines(char **lines, int line_cnt) {
-	for (int i = 0; i < line_cnt; i++) {
+void free_lines(char **lines) {
+	for (int i = 0; lines[i]; i++) {
 		free(lines[i]);
 	}
 	free(lines);
 }
-void allocate_more(char **chunk, size_t *capacity, int dsize) {
-	if (dsize > *capacity) {
-		*capacity = *capacity * 2;
-		*chunk = realloc(*chunk, *capacity);
-	}
-}
+
 char *expand_variables(const char *input) {
     size_t len = strlen(input);
-	size_t capacity = ARG_MAX;
+	size_t capacity = len * 2;
     char *result = malloc(capacity); // Allocate more space for safety
+	result[0] = '\0'; // for safety reason
     if (!result) return NULL;
 
     size_t i = 0, j = 0;
@@ -446,11 +433,14 @@ char *expand_variables(const char *input) {
                 // Only expand if it's at the start or after space/equals
                 if (home) {
                     size_t home_len = strlen(home);
-                    memcpy(result + j, home, home_len);
+					result = ralloc(result, &capacity, j + home_len + 2);
+					result[j] = '\0';
+					strncat(result, home, home_len);
                     j += home_len;
                 }
                 i++; // Skip tilde
             } else {
+				result = ralloc(result, &capacity, j + 1);
                 result[j++] = input[i++];
             }
         } else if (input[i] == '$' && isalpha(input[i + 1]) && input[i - 1] != '\\') {
@@ -462,10 +452,7 @@ char *expand_variables(const char *input) {
             int k = 0;
 
             while (isalnum(input[i]) || input[i] == '_') {
-				if (k > var_capacity) {
-					var_capacity = var_capacity * 2;
-					var = realloc(var, var_capacity);
-				}
+				var = ralloc(var, &var_capacity, k + 1);
                 var[k++] = input[i++];
             }
             var[k] = '\0';
@@ -474,10 +461,13 @@ char *expand_variables(const char *input) {
 			free(var);
             if (val) {
                 size_t vlen = strlen(val);
-                memcpy(result + j, val, vlen);
+				result = ralloc(result, &capacity, j + vlen + 2);
+				result[j] = '\0';
+				strncat(result, val, vlen);
                 j += vlen;
             }
         } else {
+			result = ralloc(result, &capacity, j + 1);
             result[j++] = input[i++]; // Copy other characters as is
         }
 
@@ -487,12 +477,12 @@ char *expand_variables(const char *input) {
     return result;
 }
 void parse_call(char *input) {
-	int line_cnt;
-	char **lines = extract_line(input, &line_cnt);
+	char **lines = extract_line(input);
 	// print_lines(lines, line_cnt);
-	for (int i = 0; i < line_cnt; i++) {
+	for (int i = 0; lines[i]; i++) {
 		char *newline = expand_variables(lines[i]);
 		TokenStream *ts = tokenize(newline);
+		// shell_print("lines: %s \n",lines[i]);
 		// print_tokens(ts);
 		ASTNode *root = parse_sequence(ts);
 		if (root) {
@@ -504,5 +494,5 @@ void parse_call(char *input) {
 		}
 
 	}
-	free_lines(lines, line_cnt);
+	free_lines(lines);
 }

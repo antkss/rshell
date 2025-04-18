@@ -10,6 +10,17 @@ mode_t get_perm(const char *filename) {
     }
     return st.st_mode & 0777;
 }
+void* ralloc(void *ptr, size_t *capacity, size_t dsize) { // small functions to handle memory
+	void *result = ptr;
+	if (dsize > *capacity || !ptr) {
+		*capacity = *capacity + (int)(*capacity / 2);
+		if (*capacity < dsize) {
+			*capacity = dsize;
+		}
+		result = realloc(ptr, *capacity);
+	}
+	return result;
+}
 int parse_option(char **args, int argc, char **option) {
 	int option_cnt = 0;
 	for (int i = 1; i < argc; i++) {
