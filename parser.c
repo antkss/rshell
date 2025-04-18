@@ -135,24 +135,26 @@ TokenStream *tokenize(char *input) {
     int in_backtick = 0;
     int escaped = 0;
     int nested_subs = 0;
-
-    char token[ARG_MAX];
+	
+	size_t token_capacity = 0x200;
+    char *token = malloc(token_capacity);
     int token_len = 0;
 
     while (input[i]) {
         char c = input[i];
         char next = input[i + 1] ? input[i + 1] : '\0';
+		token = ralloc(token, &token_capacity, token_len + 12); // hope that my count is tight
         // Handle comment outside quotes
         if (!in_single_quote && !in_double_quote && !in_backtick && c == '#') {
             break; // Skip rest of the line
         }
 
         if (escaped) {
-            token[token_len++] = c;
+            token[token_len++] = c; // count 11
             escaped = 0;
         } else if (c == '\\') {
             if (in_single_quote) {
-                token[token_len++] = c; // literal in single quotes
+                token[token_len++] = c; // literal in single quotes // count 10
             } else {
                 escaped = 1;
             }
@@ -162,28 +164,30 @@ TokenStream *tokenize(char *input) {
             in_double_quote = !in_double_quote;
         } else if (c == '`' && !in_single_quote && !in_double_quote) {
             in_backtick = !in_backtick;
-            token[token_len++] = c;
+            token[token_len++] = c; // count 9 
         } else if (!in_single_quote && !in_double_quote && !in_backtick && c == '$' && next == '(') {
-            token[token_len++] = c;
-            token[token_len++] = '(';
+            token[token_len++] = c; // count 8
+            token[token_len++] = '('; // count 7
             i += 2;
             nested_subs = 1;
             while (input[i] && nested_subs > 0) {
                 if (input[i] == '(') nested_subs++;
                 else if (input[i] == ')') nested_subs--;
-                token[token_len++] = input[i++];
+				token = ralloc(token, &token_capacity, token_len + 1);
+                token[token_len++] = input[i++];// add long token 2
             }
             i--;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && c == '$' && next == '(' && input[i + 2] == '(') {
-            token[token_len++] = '$';
-            token[token_len++] = '(';
-            token[token_len++] = '(';
+            token[token_len++] = '$'; // count 6
+            token[token_len++] = '('; // count 5
+            token[token_len++] = '('; // count 4
             i += 3;
             nested_subs = 2;
             while (input[i] && nested_subs > 0) {
                 if (input[i] == '(') nested_subs++;
                 else if (input[i] == ')') nested_subs--;
-                token[token_len++] = input[i++];
+				token = ralloc(token, &token_capacity, token_len + 1);
+                token[token_len++] = input[i++]; // add long token 1
             }
             i--;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_operator_char(c)) {
@@ -194,9 +198,9 @@ TokenStream *tokenize(char *input) {
                 token_len = 0;
             }
 
-            token[token_len++] = c;
+            token[token_len++] = c; // count 3
             if ((c == '&' && next == '&') || (c == '|' && next == '|') || (c == '>' && next == '>')) {
-                token[token_len++] = next;
+                token[token_len++] = next; // count 2
                 i++;
             }
             token[token_len] = '\0';
@@ -211,7 +215,7 @@ TokenStream *tokenize(char *input) {
                 token_len = 0;
             }
         } else {
-            token[token_len++] = c;
+            token[token_len++] = c; // count 1
         }
         i++;
     }
@@ -223,6 +227,7 @@ TokenStream *tokenize(char *input) {
     }
 
     ts->tokens[ts->count] = NULL;
+	free(token);
     return ts;
 }
 void print_ast(ASTNode *node, int indent) {

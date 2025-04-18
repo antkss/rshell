@@ -12,7 +12,7 @@ mode_t get_perm(const char *filename) {
 }
 void* ralloc(void *ptr, size_t *capacity, size_t dsize) { // small functions to handle memory
 	void *result = ptr;
-	if (dsize > *capacity || !ptr) {
+	if (dsize + 1 > *capacity || !ptr) {
 		*capacity = *capacity + (int)(*capacity / 2);
 		if (*capacity < dsize) {
 			*capacity = dsize;

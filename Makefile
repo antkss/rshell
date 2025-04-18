@@ -1,7 +1,7 @@
 # ... (Existing Makefile content) ...
 # Compiler and flags
 CXX = gcc
-CXXFLAGS = -g -lreadline
+CXXFLAGS = -g -lreadline -ltcmalloc
 # CXXFLAGS = -L/home/as/rshell/libs -lreadline -lhistory -lncurses
 
 # Target executable name
