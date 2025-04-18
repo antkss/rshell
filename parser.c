@@ -423,9 +423,15 @@ void free_lines(char **lines, int line_cnt) {
 	}
 	free(lines);
 }
+void allocate_more(char **chunk, size_t *capacity, int dsize) {
+	if (dsize > *capacity) {
+		*capacity = *capacity * 2;
+		*chunk = realloc(*chunk, *capacity);
+	}
+}
 char *expand_variables(const char *input) {
     size_t len = strlen(input);
-	size_t capacity = len * 2;
+	size_t capacity = ARG_MAX;
     char *result = malloc(capacity); // Allocate more space for safety
     if (!result) return NULL;
 
@@ -433,6 +439,7 @@ char *expand_variables(const char *input) {
     char *home = getenv("HOME");
 
     while (input[i]) {
+
 		if (input[i] == '~') {
             // Handle tilde expansion (~ -> $HOME)
             if (i == 0 || input[i-1] == ' ' || input[i-1] == '\t' || input[i-1] == '=') {
@@ -473,10 +480,7 @@ char *expand_variables(const char *input) {
         } else {
             result[j++] = input[i++]; // Copy other characters as is
         }
-		if (j > capacity) {
-			capacity = capacity * 2;
-			result = realloc(result, capacity);
-		}
+
     }
 
     result[j] = '\0';

@@ -11,6 +11,9 @@
 #include <readline/history.h>
 #include "config.h"
 #include "complete.h"
+#include <arpa/inet.h>
+#include <pty.h>
+#include <sys/wait.h>
 char *home = NULL;
 pid_t child_pid = -1;
 char *input;
@@ -43,26 +46,48 @@ void read_config() {
 }
 
 
-int main() {
-	rl_attempted_completion_function = my_completion;
-    // for (int c = 32; c <= 126; ++c) {
-    //     rl_bind_key(c, key_logger);
-    // }
-	home = getenv("HOME");
-	read_config();
-	shell_print("wellcome to my shell \n");
-	signal(SIGINT, handle_sigint);
-	char *psi_set = getenv("PSI_RSHELL");
-	if (psi_set == NULL) psi_set = GENERIC_PSI;
-    while ((input = readline(GENERIC_PSI)) != NULL) {
-        if (*input) {
-            add_history(input);  // Enable up/down arrow history
-			parse_call(input);
-			// shell_print("%s", input);
-        }
-        free(input);
-		input = NULL;
-    }
+int main(int argc, char *args[]) {
+	int opt = 0;
+	int remote = 0;
+	while ((opt = getopt(argc, args, "r")) != -1) {
+		switch (opt) {
+			case 'r':
+				remote = 1;
+				break;
+			default:
+				fprintf(stderr, "Usage: %s [-r] source dest\n", args[0]);
+				return 1;
+		}
+	}
+	if (argc == 1) {
+		rl_attempted_completion_function = my_completion;
+		// for (int c = 32; c <= 126; ++c) {
+		//     rl_bind_key(c, key_logger);
+		// }
+		home = getenv("HOME");
+		read_config();
+		shell_print("wellcome to my shell \n");
+		signal(SIGINT, handle_sigint);
+		char *psi_set = getenv("PSI_RSHELL");
+		if (psi_set == NULL) psi_set = GENERIC_PSI;
+		while ((input = readline(GENERIC_PSI)) != NULL) {
+			if (*input) {
+				add_history(input);  // Enable up/down arrow history
+				parse_call(input);
+				// shell_print("%s", input);
+			}
+			free(input);
+			input = NULL;
+		}
+	} else {
+
+			for (int i = 1; i < argc; i++) {
+				if (args[i]) {
+					parse_call(args[i]);
+				}
+			}
+
+	}
 
 	return 0;
 }
