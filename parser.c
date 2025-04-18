@@ -331,6 +331,7 @@ int eval_ast(ASTNode *node) {
 			return 0;		
 		}
 		case NODE_TREDIR: {
+			if (!node->right || !node->left) return 1;
 			int pipefd[2];
 			pipe(pipefd);
 
