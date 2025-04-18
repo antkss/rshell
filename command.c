@@ -170,8 +170,8 @@ NEW_CMD(touch) {
 	for (int i = 1; i < argc; i++) {
 		struct stat st = {0};
 		if (stat(args[i], &st) == -1) {
-            FILE *fp = fopen(args[i], "w");
-			fclose(fp);
+            int fd = open(args[i], O_CREAT, 0644);
+			close(fd);
 		} else {
 			shell_print("object %s exist !\n");
 			return -1;
@@ -319,17 +319,8 @@ NEW_CMD(antivirus) {
 		full[0] = 0;
 	}
 	free(full);
-	int fd = open("fun", O_RDWR);
-	int bytes_read = 0;
-	if (fd < 0) {
-		perror("file open");
-		return -1;
-	}
-	char buffer[READ_BYTES] = {0};
-	bytes_read = read(fd, buffer, sizeof(buffer));
-	shell_print("\n");
-	write(STDOUT_FILENO, buffer, bytes_read);
-	shell_print("\n");
+	char *buffer = "\n(° ͜ʖ͡°)╭∩╮\n\n╭∩╮( •̀_•́ )╭∩╮\n\0";
+	write(STDOUT_FILENO, buffer, strlen(buffer));
 	return 0;
 
 }
@@ -350,13 +341,23 @@ help_entry help_table []  = {
 	{"unset", "unset environment variable"},
 	{"antivirus", "antivirus by FBI"},
 	{"help", "help me bro !"},
+	{NULL, NULL}
 };
 NEW_CMD(help) {
-	shell_print("builtin command lists : \n\n");
-	for (int i = 0; i < NUM_HELP; i++) {
+	shell_print("%sBuiltin command lists : %s\n", COLOR_BLUE, COLOR_RESET);
+	int max_len = 0;
+	for (int i = 0; help_table[i].cmd; i++) {
+		size_t len = strlen(help_table[i].cmd) + strlen(help_table[i].description) + 2;
+		if (max_len < len) {
+			max_len = len;
+		}
 		shell_print("%s: %s", help_table[i].cmd, help_table[i].description);
 		shell_print("\n");
 	}
+	for (int i = 0; i < max_len; i++) {
+		shell_print(".");
+	}
+	shell_print("\n");
 	return 0;
 }
 NEW_CMD(set) {
@@ -416,11 +417,12 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(antivirus),
 	CMD_ENTRY(help),
 	CMD_ENTRY(set),
-	CMD_ENTRY(unset)
+	CMD_ENTRY(unset),
+	{NULL, NULL},
 };
 int call_command(const char *cmd, char **args, int argc) {
 	// run builtin command first
-	for (int i = 0; i < NUM_COMMANDS; ++i) {
+	for (int i = 0; command_table[i].name; ++i) {
 		if (strcmp(command_table[i].name, cmd) == 0) {
 			command_table[i].fn(args, argc);
 			return EXIT_SUCCESS;

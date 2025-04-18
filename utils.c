@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <fcntl.h>
 #include <stdarg.h>
+#include <unistd.h>
 mode_t get_perm(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == -1) {
@@ -85,12 +86,11 @@ int is_exist(char *buffer, char *buff_array[], int count) {
 }
 
 int is_file_exist(char *path) {
-	FILE *file = fopen(path, "r");
-    if (file) {
-        fclose(file);
-		return 1;
+	struct stat st = {0};
+    if (stat(path, &st) == -1) {
+		return 0;
     } 
-    return 0;
+    return 1;
 }
 int compare_first_char(const void *a, const void *b) {
     const char *fa = *(const char **)a;

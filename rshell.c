@@ -45,9 +45,9 @@ void read_config() {
 
 int main() {
 	rl_attempted_completion_function = my_completion;
-    for (int c = 32; c <= 126; ++c) {
-        rl_bind_key(c, key_logger);
-    }
+    // for (int c = 32; c <= 126; ++c) {
+    //     rl_bind_key(c, key_logger);
+    // }
 	home = getenv("HOME");
 	read_config();
 	shell_print("wellcome to my shell \n");

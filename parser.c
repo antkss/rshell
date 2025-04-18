@@ -30,10 +30,7 @@ ASTNode* new_node(NodeType type, const char *value, ASTNode *left, ASTNode *righ
 ASTNode* parse_word(TokenStream *ts) {
     char *tok = next(ts);
     if (!tok) return NULL;
-	// if (strncmp(tok, "$", 1) == 0){
-	// 	char *value = getenv(strtok(tok, "$"));
-	// 	return new_node(NODE_WORD, value ? value : "", NULL, NULL);
-	// } 
+
     return new_node(NODE_WORD, tok, NULL, NULL);
 }
 
@@ -287,36 +284,39 @@ int eval_ast(ASTNode *node) {
         }
 
         case NODE_REDIR_RIGHT: {
+			if (!node->right) return 1;
             int saved_stdout = dup(STDOUT_FILENO);
-            FILE *fp = fopen(node->right->value, "w");
-            if (!fp) {
-                perror("fopen");
+            int fd = open(node->right->value, O_RDWR | O_CREAT | O_TRUNC, 0644);
+            if (fd < 0) {
+                perror("open");
                 return 1;
             }
-            dup2(fileno(fp), STDOUT_FILENO);
+            dup2(fd, STDOUT_FILENO);
             int res = eval_ast(node->left);
             fflush(stdout);
             dup2(saved_stdout, STDOUT_FILENO);
             close(saved_stdout);
-            fclose(fp);
+            close(fd);
             return res;
         }
 		case NODE_DREDIR: {
+			if (!node->right) return 1;
             int saved_stdout = dup(STDOUT_FILENO);
-            FILE *fp = fopen(node->right->value, "a");
-            if (!fp) {
-                perror("fopen");
+            int fd = open(node->right->value, O_WRONLY | O_APPEND | O_CREAT, 0644);
+            if (fd < 0) {
+                perror("open");
                 return 1;
             }
-            dup2(fileno(fp), STDOUT_FILENO);
+            dup2(fd, STDOUT_FILENO);
             int res = eval_ast(node->left);
             fflush(stdout);
             dup2(saved_stdout, STDOUT_FILENO);
             close(saved_stdout);
-            fclose(fp);
+            close(fd);
 			return 0;		
 		}
         case NODE_REDIR_LEFT: {
+			if (!node->right) return 1;
 			int fd = open(node->right->value, O_RDONLY);
 			if (fd < 0) {
 				perror("open");
