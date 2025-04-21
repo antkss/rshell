@@ -134,6 +134,9 @@ enum {
 	TRUE, 
 	FALSE,
 	NO_AUTH, 
+	AUTH,
+	START_AUTH,
+	START_SHELL,
 };
 int basic_authencation(int client_fd) {
 	char path_file[] = ".rpass";
@@ -141,6 +144,7 @@ int basic_authencation(int client_fd) {
 	char *rpass_full = malloc(file_len + home_len + 1);
 	char password[64];
 	char user[64];
+	char result = 0;
 	rpass_full[0] = 0;
 	strncat(rpass_full, home, home_len);
 	strcat(rpass_full, "/");
@@ -151,12 +155,12 @@ int basic_authencation(int client_fd) {
 	int fd = open(rpass_full, O_RDONLY);
 	if (fd < 0) {
 		perror("open");
-		send(client_fd, "\2", 1, 0);
-		return NO_AUTH;
+		result = NO_AUTH;
 	} else {
-		send(client_fd, "\3", 1, 0);
+		char auth = AUTH;
+		send(client_fd, &auth, 1, 0);
 		char start_auth = 0;
-		while (start_auth != 7)
+		while (start_auth != START_AUTH)
 			recv(client_fd, &start_auth, 1, 0);
 		shell_print("user %d authencation activated ! \n", client_fd);
 		size_t read_len = read(fd, password, 63);
@@ -164,15 +168,13 @@ int basic_authencation(int client_fd) {
 		strtok(user, "\n");
 		strtok(password, "\n");
 		if (!memcmp(user, password, recv_len)) {
-			send(client_fd, "\0", 1, 0);
-			return TRUE;
+			result = TRUE;
 		} else {
-			send(client_fd, "\1", 1, 0);
-			return FALSE;
+			result = FALSE;
 		}
 	}
-
-	return FALSE;
+	send(client_fd, &result, 1, 0);
+	return result;
 }
 void remote_shell() {
 
@@ -215,7 +217,7 @@ void remote_shell() {
 			continue;
 		} 
 		char start_shell = 0;
-		while (start_shell != 8) {
+		while (start_shell != START_SHELL) {
 			recv(client_fd, &start_shell, 1, 0);
 		}
 
