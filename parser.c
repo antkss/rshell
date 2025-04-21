@@ -162,7 +162,7 @@ TokenStream *tokenize(char *input) {
         if (escaped) {
             token[token_len++] = c; // count 11
             escaped = 0;
-        } else if (c == '\\') {
+        } else if (c == '\\' && !in_single_quote && !in_double_quote) {
             if (in_single_quote) {
                 token[token_len++] = c; // literal in single quotes // count 10
             } else {
@@ -475,9 +475,9 @@ char *expand_variables(const char *input) {
                 if (home) {
                     size_t home_len = strlen(home);
 					result = ralloc(result, &capacity, j + home_len + 2);
-					result[j] = '\0';
-					strncat(result, home, home_len);
+					memcpy(&result[j], home, home_len);
                     j += home_len;
+					result[j] = '\0';
                 }
                 i++; // Skip tilde
             } else {
@@ -503,9 +503,9 @@ char *expand_variables(const char *input) {
             if (val) {
                 size_t vlen = strlen(val);
 				result = ralloc(result, &capacity, j + vlen + 2);
-				result[j] = '\0';
-				strncat(result, val, vlen);
+				memcpy(&result[j], val, vlen);
                 j += vlen;
+				result[j] = '\0';
             }
         } else {
 			result = ralloc(result, &capacity, j + 1);

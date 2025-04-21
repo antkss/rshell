@@ -1,0 +1,233 @@
+#include "daemon.h"
+#include "command.h"
+#include <fcntl.h>
+#include <readline/chardefs.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#define PORT 4444
+char *home = NULL;
+size_t home_len = 0;
+pid_t child_pid = -1;
+char *input;
+int sockfd = 0;
+void handle_sigint(int sig) {
+	// shell_print("child: %d \n", child_pid);
+    if (child_pid > 0) {
+        // Forward SIGINT to the child process
+        kill(child_pid, SIGINT);
+		return;
+    }
+
+    rl_replace_line("", 0);
+    rl_crlf(); // newline
+    rl_on_new_line(); // move to new line
+    rl_redisplay();
+	if (sockfd != 0) {
+		close(sockfd);
+	}
+}
+void read_config() {
+	size_t read_size;
+	char *config_path = malloc(home_len + strlen(CONFIG_FILE_NAME) + 0x10);
+	sprintf(config_path, "%s/%s", home, CONFIG_FILE_NAME);
+	char *config_read = read_file(config_path, &read_size);
+	if (read_size < ARG_MAX && config_read) {
+		parse_call(config_read);
+		free(config_path);
+		free(config_read);
+	}
+
+}
+void local_shell() {
+	rl_attempted_completion_function = my_completion;
+	// for (int c = 32; c <= 126; ++c) {
+	//     rl_bind_key(c, key_logger);
+	// }
+
+	read_config();
+	shell_print("wellcome to my shell \n");
+	signal(SIGINT, handle_sigint);
+	char *psi_set = getenv("PSI_RSHELL");
+	if (psi_set == NULL) psi_set = GENERIC_PSI;
+	while ((input = readline(GENERIC_PSI)) != NULL) {
+		if (*input) {
+			add_history(input);  // Enable up/down arrow history
+			parse_call(input);
+			// shell_print("%s", input);
+		}
+		free(input);
+		input = NULL;
+	}
+}
+void handle_client(int client_fd) {
+    int pty_master;
+    pid_t pid;
+    struct winsize ws;
+	fflush(stdout);
+	fflush(stdin);
+	fflush(stderr);
+
+    // Read initial window size
+    if (read(client_fd, &ws, sizeof(ws)) != sizeof(ws)) {
+        perror("read winsize");
+        close(client_fd);
+        return;
+    }
+
+    pid = forkpty(&pty_master, NULL, NULL, &ws);
+    if (pid < 0) {
+        perror("forkpty");
+        close(client_fd);
+        return;
+    }
+
+    if (pid == 0) {
+		local_shell();
+        perror("execl");
+        exit(1);
+    }
+
+    char buf[ARG_MAX];
+    fd_set fds;
+
+    while (1) {
+        FD_ZERO(&fds);
+        FD_SET(client_fd, &fds);
+        FD_SET(pty_master, &fds);
+        int maxfd = (client_fd > pty_master ? client_fd : pty_master) + 1;
+
+        if (select(maxfd, &fds, NULL, NULL, NULL) < 0) break;
+
+        if (FD_ISSET(client_fd, &fds)) {
+            unsigned char msg_type;
+            ssize_t n = read(client_fd, &msg_type, 1);
+            if (n <= 0) break;
+
+            if (msg_type == 0x00) {
+                n = read(client_fd, buf, sizeof(buf));
+                if (n <= 0) break;
+                write(pty_master, buf, n);
+            } else if (msg_type == 0x01) {
+                struct winsize new_ws;
+                if (read(client_fd, &new_ws, sizeof(new_ws)) == sizeof(new_ws)) {
+                    ioctl(pty_master, TIOCSWINSZ, &new_ws);
+                    kill(pid, SIGWINCH);
+                }
+            }
+        }
+
+        if (FD_ISSET(pty_master, &fds)) {
+            ssize_t n = read(pty_master, buf, sizeof(buf));
+            if (n <= 0) break;
+            write(client_fd, buf, n);
+        }
+    }
+
+    kill(pid, SIGKILL);
+    close(pty_master);
+    close(client_fd);
+    waitpid(pid, NULL, 0);
+}
+enum {
+	TRUE, 
+	FALSE,
+	NO_AUTH, 
+};
+int basic_authencation(int client_fd) {
+	char path_file[] = ".rpass";
+	size_t file_len = sizeof(path_file);
+	char *rpass_full = malloc(file_len + home_len + 1);
+	char password[64];
+	char user[64];
+	rpass_full[0] = 0;
+	strncat(rpass_full, home, home_len);
+	strcat(rpass_full, "/");
+	strncat(rpass_full, path_file, file_len);
+	shell_print("rpass: %s \n", rpass_full);
+	memset(password, 0, 64);
+	memset(user, 0, 64);
+	int fd = open(rpass_full, O_RDONLY);
+	if (fd < 0) {
+		perror("open");
+		send(client_fd, "\2", 1, 0);
+		return NO_AUTH;
+	} else {
+		send(client_fd, "\3", 1, 0);
+		char start_auth = 0;
+		while (start_auth != 7)
+			recv(client_fd, &start_auth, 1, 0);
+		shell_print("user %d authencation activated ! \n", client_fd);
+		size_t read_len = read(fd, password, 63);
+		size_t recv_len = recv(client_fd, user, 63, 0);
+		strtok(user, "\n");
+		strtok(password, "\n");
+		if (!memcmp(user, password, recv_len)) {
+			send(client_fd, "\0", 1, 0);
+			return TRUE;
+		} else {
+			send(client_fd, "\1", 1, 0);
+			return FALSE;
+		}
+	}
+
+	return FALSE;
+}
+void remote_shell() {
+
+    int server_fd, client_fd;
+    struct sockaddr_in addr;
+
+    socklen_t addrlen = sizeof(addr);
+    // signal(SIGCHLD, SIG_IGN);
+
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int one = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(PORT);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        exit(1);
+    }
+
+    if (listen(server_fd, 10) < 0) {
+        perror("listen");
+        exit(1);
+    }
+
+    printf("Server listening on port %d...\n", PORT);
+    while (1) {
+        client_fd = accept(server_fd, (struct sockaddr *)&addr, &addrlen);
+		shell_print("new client connected %d \n", client_fd);
+        if (client_fd < 0) {
+            perror("accept");
+            continue;
+        }
+		int auth = basic_authencation(client_fd);
+		if (auth == FALSE) {
+			close(client_fd);
+			shell_print("wrong password, refuse the client\n");
+			continue;
+		} 
+		char start_shell = 0;
+		while (start_shell != 8) {
+			recv(client_fd, &start_shell, 1, 0);
+		}
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            close(server_fd);
+            handle_client(client_fd);
+            exit(0);
+        }
+
+        close(client_fd);
+    }
+
+    close(server_fd);
+}

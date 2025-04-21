@@ -2,6 +2,7 @@
 #include <linux/limits.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,8 @@
 #include <stdarg.h>
 #include "terminal.h"
 #include "utils.h"
+#include <sys/time.h>
+#include <sys/resource.h>
 extern char **environ;
 extern pid_t child_pid;
 
@@ -341,6 +344,7 @@ help_entry help_table []  = {
 	{"unset", "unset environment variable"},
 	{"antivirus", "antivirus by FBI"},
 	{"help", "help me bro !"},
+	{"time", "program execute estimate time"},
 	{NULL, NULL}
 };
 NEW_CMD(help) {
@@ -401,6 +405,50 @@ NEW_CMD(unset) {
 	}
 	return 0;
 }
+NEW_CMD(time) {
+	size_t capacity = 0x100;
+	char *concat_args = malloc(capacity);
+	concat_args[0] = 0;
+	for (int i = 1; i < argc; i++){
+		size_t arg_len = strlen(args[i]);
+		ralloc(concat_args, &capacity, strlen(concat_args) + arg_len + 1);
+		strncat(concat_args, args[i], arg_len);
+		strcat(concat_args, " ");
+	}
+	shell_print("command: %s \n", concat_args);
+	struct timeval start_wall, end_wall;
+    struct rusage usage_start, usage_end;
+
+    // Start timestamps
+    gettimeofday(&start_wall, NULL);
+    getrusage(RUSAGE_CHILDREN, &usage_start);
+	if (strlen(concat_args) > 0) parse_call(concat_args);
+    // End timestamps
+    gettimeofday(&end_wall, NULL);
+    getrusage(RUSAGE_CHILDREN, &usage_end);
+
+    // Calculate wall time
+    double wall_time = (end_wall.tv_sec - start_wall.tv_sec) +
+                       (end_wall.tv_usec - start_wall.tv_usec) / 1e6;
+
+    // Calculate CPU times
+    double user_time = (usage_end.ru_utime.tv_sec - usage_start.ru_utime.tv_sec) +
+                       (usage_end.ru_utime.tv_usec - usage_start.ru_utime.tv_usec) / 1e6;
+
+    double sys_time = (usage_end.ru_stime.tv_sec - usage_start.ru_stime.tv_sec) +
+                      (usage_end.ru_stime.tv_usec - usage_start.ru_stime.tv_usec) / 1e6;
+
+    double cpu_percentage = 0;
+    if (wall_time > 0)
+        cpu_percentage = 100.0 * (user_time + sys_time) / wall_time;
+
+    printf("\nCommand timing:\n");
+    printf("  %.2fs user  %.2fs system  %.0f%% cpu  %.3fs total\n",
+           user_time, sys_time, cpu_percentage, wall_time);
+	free(concat_args);
+
+    return 0;
+}
 CommandEntry command_table[] = {
     CMD_ENTRY(ls),
     CMD_ENTRY(cd),
@@ -418,6 +466,7 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(help),
 	CMD_ENTRY(set),
 	CMD_ENTRY(unset),
+	CMD_ENTRY(time),
 	{NULL, NULL},
 };
 int call_command(const char *cmd, char **args, int argc) {
