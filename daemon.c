@@ -163,11 +163,11 @@ int basic_authencation(int client_fd) {
 		while (start_auth != START_AUTH)
 			recv(client_fd, &start_auth, 1, 0);
 		shell_print("user %d authencation activated ! \n", client_fd);
-		size_t read_len = read(fd, password, 63);
+		read(fd, password, 63);
 		size_t recv_len = recv(client_fd, user, 63, 0);
 		strtok(user, "\n");
 		strtok(password, "\n");
-		if (!memcmp(user, password, recv_len)) {
+		if (!memcmp(user, password, strlen(password))) {
 			result = TRUE;
 		} else {
 			result = FALSE;
