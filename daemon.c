@@ -11,7 +11,17 @@ char *home = NULL;
 size_t home_len = 0;
 pid_t child_pid = -1;
 char *input;
-int sockfd = 0;
+int sockfd = -1;
+enum {
+	TRUE, 
+	FALSE,
+	NO_AUTH, 
+	AUTH,
+	START_AUTH,
+	START_SHELL,
+	RESIZE,
+	TTY_BUFFER,
+};
 void handle_sigint(int sig) {
 	// shell_print("child: %d \n", child_pid);
     if (child_pid > 0) {
@@ -65,9 +75,6 @@ void handle_client(int client_fd) {
     int pty_master;
     pid_t pid;
     struct winsize ws;
-	fflush(stdout);
-	fflush(stdin);
-	fflush(stderr);
 
     // Read initial window size
     if (read(client_fd, &ws, sizeof(ws)) != sizeof(ws)) {
@@ -105,11 +112,11 @@ void handle_client(int client_fd) {
             ssize_t n = read(client_fd, &msg_type, 1);
             if (n <= 0) break;
 
-            if (msg_type == 0x00) {
+            if (msg_type == TTY_BUFFER) {
                 n = read(client_fd, buf, sizeof(buf));
                 if (n <= 0) break;
                 write(pty_master, buf, n);
-            } else if (msg_type == 0x01) {
+            } else if (msg_type == RESIZE) {
                 struct winsize new_ws;
                 if (read(client_fd, &new_ws, sizeof(new_ws)) == sizeof(new_ws)) {
                     ioctl(pty_master, TIOCSWINSZ, &new_ws);
@@ -130,14 +137,7 @@ void handle_client(int client_fd) {
     close(client_fd);
     waitpid(pid, NULL, 0);
 }
-enum {
-	TRUE, 
-	FALSE,
-	NO_AUTH, 
-	AUTH,
-	START_AUTH,
-	START_SHELL,
-};
+
 int basic_authencation(int client_fd) {
 	char path_file[] = ".rpass";
 	size_t file_len = sizeof(path_file);
@@ -149,7 +149,7 @@ int basic_authencation(int client_fd) {
 	strncat(rpass_full, home, home_len);
 	strcat(rpass_full, "/");
 	strncat(rpass_full, path_file, file_len);
-	shell_print("rpass: %s \n", rpass_full);
+	// shell_print("rpass: %s \n", rpass_full);
 	memset(password, 0, 64);
 	memset(user, 0, 64);
 	int fd = open(rpass_full, O_RDONLY);
@@ -158,10 +158,9 @@ int basic_authencation(int client_fd) {
 		result = NO_AUTH;
 	} else {
 		char auth = AUTH;
-		send(client_fd, &auth, 1, 0);
+		write(client_fd, &auth, 1);
 		char start_auth = 0;
-		while (start_auth != START_AUTH)
-			recv(client_fd, &start_auth, 1, 0);
+		recv(client_fd, &start_auth, 1, 0);
 		shell_print("user %d authencation activated ! \n", client_fd);
 		read(fd, password, 63);
 		size_t recv_len = recv(client_fd, user, 63, 0);
@@ -173,7 +172,7 @@ int basic_authencation(int client_fd) {
 			result = FALSE;
 		}
 	}
-	send(client_fd, &result, 1, 0);
+	write(client_fd, &result, 1);
 	return result;
 }
 void remote_shell() {
@@ -217,9 +216,7 @@ void remote_shell() {
 			continue;
 		} 
 		char start_shell = 0;
-		while (start_shell != START_SHELL) {
-			recv(client_fd, &start_shell, 1, 0);
-		}
+		recv(client_fd, &start_shell, 1, 0);
 
         pid_t pid = fork();
         if (pid == 0) {

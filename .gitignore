@@ -1,3 +1,4 @@
 *.o
 rshell
 test
+client
