@@ -177,6 +177,7 @@ int basic_authencation(int client_fd) {
 	write(client_fd, &result, 1);
 	return result;
 }
+#ifdef DAEMON
 void daemonize() {
 	int pid = fork();
 
@@ -198,6 +199,7 @@ void daemonize() {
 	open("/dev/null", O_RDWR);
 	
 }
+#endif
 void remote_shell() {
 
     int server_fd, client_fd;
@@ -213,7 +215,9 @@ void remote_shell() {
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
 	signal(SIGCHLD, SIG_IGN);
+#ifdef DAEMON
 	daemonize();
+#endif
 
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");

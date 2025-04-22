@@ -16,7 +16,7 @@ SRC = $(shell find . -maxdepth 1 -type f -name "*.c" | sort)
 OBJ = $(SRC:.c=.o)
 HDR = $(shell find . -maxdepth 1 -type f -name "*.h")
 
-.PHONY: all debug clean
+.PHONY: all daemonize debug clean
 
 # Default: Release build
 all: $(TARGET) $(TARGET_CLIENT)
@@ -25,7 +25,9 @@ all: $(TARGET) $(TARGET_CLIENT)
 debug: CXXFLAGS += $(DEBUG_FLAGS)
 debug: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $(DEBUG_TARGET) $^
-
+daemonize: CXXFLAGS += -DDAEMON
+daemonize: $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $^
 # Release build of main target
 $(TARGET): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(RELEASE_FLAGS) -o $@ $^
