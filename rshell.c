@@ -18,6 +18,10 @@ int main(int argc, char *args[]) {
 	int remote = 0;
 	home = getenv("HOME");
 	home_len = strlen(home);
+	if (!home) {
+		home = "/"; // or some known writable path
+		home_len = 1;
+	}
 	while ((opt = getopt(argc, args, "r")) != -1) {
 		switch (opt) {
 			case 'r':
