@@ -4,8 +4,10 @@
 #include <readline/chardefs.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #define PORT 4444
 char *home = NULL;
 size_t home_len = 0;
@@ -175,13 +177,33 @@ int basic_authencation(int client_fd) {
 	write(client_fd, &result, 1);
 	return result;
 }
+void daemonize() {
+	int pid = fork();
+
+	if (pid > 0) exit(EXIT_SUCCESS);
+	if (pid < 0) exit(EXIT_FAILURE);
+	
+	if (setsid() < 0) {
+		exit(EXIT_FAILURE);
+	}
+	if (pid > 0) exit(EXIT_SUCCESS);
+	if (pid < 0) exit(EXIT_FAILURE);
+	umask(0);
+	chdir("/");
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDOUT_FILENO);
+	open("/dev/null", O_RDONLY);
+	open("/dev/null", O_RDWR);
+	open("/dev/null", O_RDWR);
+	
+}
 void remote_shell() {
 
     int server_fd, client_fd;
     struct sockaddr_in addr;
 
     socklen_t addrlen = sizeof(addr);
-    // signal(SIGCHLD, SIG_IGN);
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     int one = 1;
@@ -190,6 +212,8 @@ void remote_shell() {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
+	signal(SIGCHLD, SIG_IGN);
+	daemonize();
 
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
