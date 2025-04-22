@@ -13,18 +13,27 @@
 #include <pty.h>
 #include <sys/wait.h>
 #include "daemon.h"
-
+#ifdef DEBUG
+void handler(int sig) {
+    printf("signal: %d\n", sig);
+}
+#endif
 
 int main(int argc, char *args[]) {
 	int opt = 0;
 	int remote = 0;
+#ifdef DEBUG
+	signal(SIGUSR1, handler);
+	pause();
+#endif
 	home = getenv("HOME");
-	home_len = strlen(home);
 	if (!home) {
 		home = "/"; // or some known writable path
 		home_len = 1;
 		setenv("HOME", home, 1);
 		shell_print("no HOME env found \n");
+	} else {
+		home_len = strlen(home);
 	}
 	while ((opt = getopt(argc, args, "r")) != -1) {
 		switch (opt) {
