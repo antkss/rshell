@@ -35,15 +35,22 @@ enum {
 	RESIZE,
 	TTY_BUFFER,
 };
-int main() {
+int main(int argc, char *args[]) {
+	char ip[16] = "127.0.0.1";
+	if (argc > 1) {
+		size_t len = strlen(args[1]);
+		strncpy(ip, args[1], len);
+		ip[len] = 0;
+	}
 	int pty_master;
 	char cmd = -1;
 	char password[64];
+	printf("ip: %s \n", ip);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serv_addr = {
         .sin_family = AF_INET,
         .sin_port = htons(PORT),
-        .sin_addr.s_addr = inet_addr("127.0.0.1"),
+        .sin_addr.s_addr = inet_addr(ip),
     };
 	signal(SIGWINCH, handle_sigwinch);
 
@@ -52,7 +59,7 @@ int main() {
         return 1;
     }
 	recv(sockfd, &cmd, 1, 0);
-	printf("%d \n", cmd);
+	// printf("%d \n", cmd);
 	if (cmd == AUTH) {
 		char result = -1;
 		fflush(stdout);
