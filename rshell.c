@@ -22,6 +22,7 @@ void handler(int sig) {
 int main(int argc, char *args[]) {
 	int opt = 0;
 	int remote = 0;
+	char *home_path = NULL;
 #ifdef DEBUG
 	signal(SIGUSR1, handler);
 	pause();
@@ -35,17 +36,24 @@ int main(int argc, char *args[]) {
 	} else {
 		home_len = strlen(home);
 	}
-	while ((opt = getopt(argc, args, "r")) != -1) {
+
+	while ((opt = getopt(argc, args, "r::")) != -1) {
 		switch (opt) {
 			case 'r':
 				remote = 1;
+				home_path = optarg;
 				break;
 			default:
-				fprintf(stderr, "Usage: %s [-r] source dest\n", args[0]);
+				fprintf(stderr, "Usage: %s [-r] home\n", args[0]);
 				return 1;
 		}
 	}
-	if (remote > 0) {
+	if (remote != 0) {
+		if (home_path) {
+			setenv("HOME", home_path, 1);
+			home = home_path;
+			home_len = strlen(home_path);
+		}
 		remote_shell();
 		return 0;
 	}
