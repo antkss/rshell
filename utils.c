@@ -215,8 +215,6 @@ int get_list_files(const char *path, char* content[], int *count) {
     }
 
     struct dirent *entry;
-    int first = 1;
-
 	*count = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {

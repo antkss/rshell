@@ -187,8 +187,6 @@ NEW_CMD(touch) {
 NEW_CMD(rm) {
 	char *option[6];
 	int op_num =  parse_option(args, argc, option);
-	char *content[XATTR_LIST_MAX];
-	int count;
 	int recursive = 0;
 	// shell_print("op_num %d \n", op_num);
 	for (int i = 0; i < op_num; i++) {

@@ -328,7 +328,7 @@ int eval_ast(ASTNode *node) {
             dup2(saved_stdout, STDOUT_FILENO);
             close(saved_stdout);
             close(fd);
-			return 0;		
+			return res;		
 		}
 		case NODE_TREDIR: {
 			if (!node->right || !node->left) return 1;
