@@ -1,10 +1,12 @@
 #include <linux/limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include "command.h"
 #include "config.h"
 #include "complete.h"
 #include <arpa/inet.h>
@@ -21,6 +23,8 @@ int main(int argc, char *args[]) {
 	if (!home) {
 		home = "/"; // or some known writable path
 		home_len = 1;
+		setenv("HOME", home, 1);
+		shell_print("no HOME env found \n");
 	}
 	while ((opt = getopt(argc, args, "r")) != -1) {
 		switch (opt) {
