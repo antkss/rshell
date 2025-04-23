@@ -108,3 +108,6 @@ int key_logger(int count, int key) {
     rl_redisplay();
     return 0;
 }
+void completion_setup() {
+	rl_attempted_completion_function = my_completion;
+}

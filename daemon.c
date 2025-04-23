@@ -53,17 +53,13 @@ void read_config() {
 
 }
 void local_shell() {
-	rl_attempted_completion_function = my_completion;
-	// for (int c = 32; c <= 126; ++c) {
-	//     rl_bind_key(c, key_logger);
-	// }
-
 	read_config();
 	shell_print("wellcome to my shell \n");
 	signal(SIGINT, handle_sigint);
 	char *psi_set = getenv("PSI_RSHELL");
 	if (psi_set == NULL) psi_set = GENERIC_PSI;
-	while ((input = readline(GENERIC_PSI)) != NULL) {
+	completion_setup();
+	while ((input = readline(psi_set)) != NULL) {
 		if (*input) {
 			add_history(input);  // Enable up/down arrow history
 			parse_call(input);
@@ -200,6 +196,10 @@ void daemonize() {
 	
 }
 #endif
+void reap_children(int sig) {
+    // reap all dead children
+    while (waitpid(-1, NULL, WNOHANG) > 0);
+}
 void remote_shell() {
 
     int server_fd, client_fd;
@@ -214,7 +214,12 @@ void remote_shell() {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
-	signal(SIGCHLD, SIG_IGN);
+
+	struct sigaction sa;
+    sa.sa_handler = reap_children;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+	sigaction(SIGCHLD, &sa, NULL);
 #ifdef DAEMON
 	daemonize();
 #endif
@@ -252,7 +257,6 @@ void remote_shell() {
             handle_client(client_fd);
             exit(0);
         }
-
         close(client_fd);
     }
 
