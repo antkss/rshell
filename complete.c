@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-extern help_entry help_table [];
+extern CommandEntry command_table[];
 
 int is_executable(const char *path) {
     return access(path, X_OK) == 0;
@@ -66,9 +66,10 @@ char *my_generator(const char *text, int state) {
 
     // Phase 1: Built-in commands[]
     if (phase == 1) {
-        while (help_table[cmd_index].cmd) {
-            const char *cmd = help_table[cmd_index++].cmd;
-            if (!strncmp(text, cmd, len)) {
+        while (command_table[cmd_index].name) {
+			CommandEntry command = command_table[cmd_index++];
+            const char *cmd = command.name;
+            if (command.enable != 0 && !strncmp(text, cmd, len)) {
                 return strdup(cmd);
             }
         }

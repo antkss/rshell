@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 extern char **environ;
 extern pid_t child_pid;
+extern CommandEntry command_table[];
 
 NEW_CMD(clear) {
 	shell_print("\033c");
@@ -325,35 +326,16 @@ NEW_CMD(antivirus) {
 	return 0;
 
 }
-help_entry help_table []  = {
-	{"ls", "list folder and file of a path"},
-	{"cd", "change directory"},
-	{"exit", "leave shell"},
-	{"clear", "clear screen"},
-	{"cat", "concatenate"},
-	{"mkdir", "create empty folder"},
-	{"rm", "remove object"},
-	{"touch", "create empty file"},
-	{"cp", "copy object"},
-	{"echo", "echo text"},
-	{"chmod", "change permission of an object"},
-	{"mv", "move file or change file name"},
-	{"set", "set environment variable"},
-	{"unset", "unset environment variable"},
-	{"antivirus", "antivirus by FBI"},
-	{"help", "help me bro !"},
-	{"time", "program execute estimate time"},
-	{NULL, NULL}
-};
+
 NEW_CMD(help) {
-	shell_print("%sBuiltin command lists : %s\n", COLOR_BLUE, COLOR_RESET);
+	shell_print("%sBuiltin commands list (just for fun): %s\n", COLOR_BLUE, COLOR_RESET);
 	int max_len = 0;
-	for (int i = 0; help_table[i].cmd; i++) {
-		size_t len = strlen(help_table[i].cmd) + strlen(help_table[i].description) + 2;
+	for (int i = 0; command_table[i].name; i++) {
+		size_t len = strlen(command_table[i].name) + strlen(command_table[i].description) + 2;
 		if (max_len < len) {
 			max_len = len;
 		}
-		shell_print("%s: %s", help_table[i].cmd, help_table[i].description);
+		shell_print("%s (%d): %s", command_table[i].name, command_table[i].enable ,command_table[i].description);
 		shell_print("\n");
 	}
 	for (int i = 0; i < max_len; i++) {
@@ -447,30 +429,44 @@ NEW_CMD(time) {
 
     return 0;
 }
+NEW_CMD(toggle) {
+	for (int i = 1; i < argc; i++)
+	{
+		for (int j = 0; command_table[j].name; j++) {
+			if (!strcmp(command_table[j].name, args[i]) && strncmp(command_table[j].name, "toggle", 6) && strncmp(command_table[j].name, "help", 4)) {
+				command_table[j].enable ^= 1;
+			}
+		}
+
+	}
+	return 0;
+}
 CommandEntry command_table[] = {
-    CMD_ENTRY(ls),
-    CMD_ENTRY(cd),
-    CMD_ENTRY(exit),
-	CMD_ENTRY(clear),
-	CMD_ENTRY(cat),
-	CMD_ENTRY(mkdir),
-	CMD_ENTRY(rm),
-	CMD_ENTRY(touch),
-	CMD_ENTRY(cp),
-	CMD_ENTRY(echo),
-	CMD_ENTRY(chmod),
-	CMD_ENTRY(mv),
-	CMD_ENTRY(antivirus),
-	CMD_ENTRY(help),
-	CMD_ENTRY(set),
-	CMD_ENTRY(unset),
-	CMD_ENTRY(time),
-	{NULL, NULL},
+    CMD_ENTRY(ls, 0, "list folder and file of a path"),
+    CMD_ENTRY(cd, 0, "change directory"),
+    CMD_ENTRY(exit, 1, "leave shell"),
+	CMD_ENTRY(clear, 0, "clear screen"),
+	CMD_ENTRY(cat, 0, "concatenate"),
+	CMD_ENTRY(mkdir, 0, "create empty folder"),
+	CMD_ENTRY(rm, 0, "remove object"),
+	CMD_ENTRY(touch, 0, "create empty file"),
+	CMD_ENTRY(cp, 0, "copy object"),
+	CMD_ENTRY(echo, 0, "echo text"),
+	CMD_ENTRY(chmod, 0, "change permission of an object"),
+	CMD_ENTRY(mv, 0, "move file or change file name"),
+	CMD_ENTRY(antivirus, 1, "set environment variable"),
+	CMD_ENTRY(set, 1, "set environment variable"),
+	CMD_ENTRY(unset, 1, "unset environment variable"),
+	CMD_ENTRY(time, 1, "estimate time for program execution"),
+	CMD_ENTRY(toggle, 1, "builtin command toggle"),
+	CMD_ENTRY(help, 1, "help me bro !"),
+	{NULL, NULL, 0, NULL},
 };
+
 int call_command(const char *cmd, char **args, int argc) {
 	// run builtin command first
 	for (int i = 0; command_table[i].name; ++i) {
-		if (strcmp(command_table[i].name, cmd) == 0) {
+		if (command_table[i].enable != 0 && strcmp(command_table[i].name, cmd) == 0) {
 			command_table[i].fn(args, argc);
 			return EXIT_SUCCESS;
 		}

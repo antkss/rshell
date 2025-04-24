@@ -34,7 +34,7 @@ $(TARGET): $(OBJ)
 
 # Client target (always release, static)
 $(TARGET_CLIENT): $(CLIENT_SRC)
-	$(CXX) -static -o $@ $^
+	$(CXX) -o $@ $^
 
 # Rule for compiling .c to .o
 %.o: %.c $(HDR)

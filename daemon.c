@@ -23,6 +23,7 @@ enum {
 	START_SHELL,
 	RESIZE,
 	TTY_BUFFER,
+	FILES,
 };
 void handle_sigint(int sig) {
 	// shell_print("child: %d \n", child_pid);
@@ -237,7 +238,6 @@ void remote_shell() {
     printf("Server listening on port %d...\n", PORT);
     while (1) {
         client_fd = accept(server_fd, (struct sockaddr *)&addr, &addrlen);
-		shell_print("new client connected %d \n", client_fd);
         if (client_fd < 0) {
             perror("accept");
             continue;
@@ -254,6 +254,7 @@ void remote_shell() {
         pid_t pid = fork();
         if (pid == 0) {
             close(server_fd);
+			shell_print("new client connected %d \n", client_fd);
             handle_client(client_fd);
             exit(0);
         }

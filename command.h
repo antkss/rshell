@@ -14,13 +14,11 @@ typedef int (*command_fn)(char **args, int argc);
 typedef struct {
     const char *name;
     command_fn fn;
-} CommandEntry;
-typedef struct {
-	const char *cmd;
+	int enable;
 	const char *description;
-} help_entry;
+} CommandEntry;
 
-#define CMD_ENTRY(cmd) { #cmd, cmd##_cmd }
+#define CMD_ENTRY(cmd, enable, des) { #cmd, cmd##_cmd, enable, des}
 #define NEW_CMD(cmd) int cmd##_cmd(char **args, int argc)
 #define GENERIC_PSI "@> " 
 #define CONFIG_FILE_NAME ".rshell"
