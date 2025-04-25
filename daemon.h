@@ -29,4 +29,6 @@ extern size_t home_len;
 void read_config();
 void local_shell();
 void remote_shell();
+void setup_reap_child();
+
 

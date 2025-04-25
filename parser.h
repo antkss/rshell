@@ -16,7 +16,7 @@ typedef enum {
 
 typedef struct ASTNode {
     NodeType type;
-    char *value;  // For EQUAL
+    char *value;  
     struct ASTNode *left;
     struct ASTNode *right;
 } ASTNode;
@@ -37,9 +37,9 @@ ASTNode* parse_redir_right(TokenStream *ts);
 ASTNode* parse_redir_left(TokenStream *ts);
 ASTNode* parse_and_or(TokenStream *ts);
 ASTNode* parse_sequence(TokenStream *ts);
-TokenStream *tokenize(char *input);
+TokenStream *tokenize(const char *input);
 void print_ast(ASTNode *node, int indent);
-void parse_call(char *input);
+void parse_call(const char *input);
 char *concat_tokens(TokenStream *ts);
 void print_tokens(TokenStream *ts);
                

@@ -56,6 +56,7 @@ void read_config() {
 void local_shell() {
 	read_config();
 	shell_print("wellcome to my shell \n");
+	rl_catch_signals = 0;
 	signal(SIGINT, handle_sigint);
 	char *psi_set = getenv("PSI_RSHELL");
 	if (psi_set == NULL) psi_set = GENERIC_PSI;
@@ -201,6 +202,13 @@ void reap_children(int sig) {
     // reap all dead children
     while (waitpid(-1, NULL, WNOHANG) > 0);
 }
+void setup_reap_child() {
+	struct sigaction sa;
+    sa.sa_handler = reap_children;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+	sigaction(SIGCHLD, &sa, NULL);
+}
 void remote_shell() {
 
     int server_fd, client_fd;
@@ -215,12 +223,6 @@ void remote_shell() {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
-
-	struct sigaction sa;
-    sa.sa_handler = reap_children;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-	sigaction(SIGCHLD, &sa, NULL);
 #ifdef DAEMON
 	daemonize();
 #endif

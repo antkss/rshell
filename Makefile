@@ -1,7 +1,7 @@
 
 # Compiler and flags
 CXX = gcc
-CXXFLAGS = -Wall -lreadline -ltcmalloc
+CXXFLAGS = -Wall -lreadline -g
 DEBUG_FLAGS = -g -O0 -DDEBUG
 RELEASE_FLAGS = -O2
 

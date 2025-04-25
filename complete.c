@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "utils.h"
 extern CommandEntry command_table[];
 
 int is_executable(const char *path) {
@@ -30,7 +31,7 @@ char *my_generator(const char *text, int state) {
         cmd_index = 0;
 
         if (paths) free(paths);
-        paths = strdup(getenv("PATH"));
+        paths = dupstr(getenv("PATH"));
         dir = strtok(paths, ":");
 
         if (dp) closedir(dp);
@@ -50,7 +51,7 @@ char *my_generator(const char *text, int state) {
                     snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, entry->d_name);
                     if (is_executable(fullpath)) {
                         if (!strncmp(text, entry->d_name, len)) {
-                            return strdup(entry->d_name);
+                            return dupstr(entry->d_name);
                         }
                     }
                 }
@@ -70,7 +71,7 @@ char *my_generator(const char *text, int state) {
 			CommandEntry command = command_table[cmd_index++];
             const char *cmd = command.name;
             if (command.enable != 0 && !strncmp(text, cmd, len)) {
-                return strdup(cmd);
+                return dupstr(cmd);
             }
         }
         phase = 2;
@@ -81,7 +82,7 @@ char *my_generator(const char *text, int state) {
     if (phase == 2 && dp) {
         while ((entry = readdir(dp))) {
             if (entry->d_type == DT_DIR && !strncmp(entry->d_name, text, len)) {
-                return strdup(entry->d_name);
+                return dupstr(entry->d_name);
             }
         }
         closedir(dp);

@@ -396,4 +396,16 @@ int find_pos_token(char **args, int argc, char *target, int cur_pos) {
 	}
 	return -1;
 }
-
+char *dupstr(const char *s) {
+    size_t len = strlen(s);
+    char *copy = malloc(len + 1);
+    if (copy) memcpy(copy, s, len);
+	copy[len] = '\0';
+    return copy;
+}
+char *dupnstr(const char *s, size_t len) {
+    char *copy = malloc(len + 1);
+    if (copy) memcpy(copy, s, len);
+	copy[len] = '\0';
+    return copy;
+}

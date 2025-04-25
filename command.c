@@ -18,6 +18,7 @@
 #include "utils.h"
 #include <sys/time.h>
 #include <sys/resource.h>
+#include "alias.h"
 extern char **environ;
 extern pid_t child_pid;
 extern CommandEntry command_table[];
@@ -387,22 +388,23 @@ NEW_CMD(unset) {
 }
 NEW_CMD(time) {
 	size_t capacity = 0x100;
-	char *concat_args = malloc(capacity);
-	concat_args[0] = 0;
+	char *command = malloc(capacity);
+	size_t len = 0;
 	for (int i = 1; i < argc; i++){
 		size_t arg_len = strlen(args[i]);
-		ralloc(concat_args, &capacity, strlen(concat_args) + arg_len + 1);
-		strncat(concat_args, args[i], arg_len);
-		strcat(concat_args, " ");
+		command = ralloc(command, &capacity, len + arg_len + 2);
+		memcpy(&command[len], args[i], arg_len);
+		memcpy(&command[len + arg_len], " ", 1);
+		len += arg_len + 1;
 	}
-	shell_print("command: %s \n", concat_args);
+	shell_print("command: %s \n", command);
 	struct timeval start_wall, end_wall;
     struct rusage usage_start, usage_end;
 
     // Start timestamps
     gettimeofday(&start_wall, NULL);
     getrusage(RUSAGE_CHILDREN, &usage_start);
-	if (strlen(concat_args) > 0) parse_call(concat_args);
+	if (strlen(command) > 0) parse_call(command);
     // End timestamps
     gettimeofday(&end_wall, NULL);
     getrusage(RUSAGE_CHILDREN, &usage_end);
@@ -423,9 +425,9 @@ NEW_CMD(time) {
         cpu_percentage = 100.0 * (user_time + sys_time) / wall_time;
 
     printf("\nCommand timing:\n");
-    printf("  %.2fs user  %.2fs system  %.0f%% cpu  %.3fs total\n",
+    printf("  %.2fs user  %.2fs system  %.0f%% cpu  %.6fs total\n",
            user_time, sys_time, cpu_percentage, wall_time);
-	free(concat_args);
+	free(command);
 
     return 0;
 }
@@ -441,9 +443,24 @@ NEW_CMD(toggle) {
 	}
 	return 0;
 }
+
+NEW_CMD(alias) {
+	if (argc == 1) {
+		print_aliases();
+		return 0;
+	}
+	for (int i = 1; i < argc; i++) {
+		char *name = strtok(args[i], "=");
+		char *value = strtok(NULL, "=");
+		if (value != NULL) {
+			add_alias(name, value);
+		}
+	}
+	return 0;
+}
 CommandEntry command_table[] = {
     CMD_ENTRY(ls, 0, "list folder and file of a path"),
-    CMD_ENTRY(cd, 0, "change directory"),
+    CMD_ENTRY(cd, 1, "change directory"),
     CMD_ENTRY(exit, 1, "leave shell"),
 	CMD_ENTRY(clear, 0, "clear screen"),
 	CMD_ENTRY(cat, 0, "concatenate"),
@@ -459,6 +476,7 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(unset, 1, "unset environment variable"),
 	CMD_ENTRY(time, 1, "estimate time for program execution"),
 	CMD_ENTRY(toggle, 1, "builtin command toggle"),
+	CMD_ENTRY(alias, 1, "link command"),
 	CMD_ENTRY(help, 1, "help me bro !"),
 	{NULL, NULL, 0, NULL},
 };

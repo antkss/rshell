@@ -24,3 +24,5 @@ int is_redirection_char(char c);
 int find_pos_token(char **args, int argc, char *target, int cur_pos);
 void* ralloc(void *ptr, size_t *capacity, size_t dsize);
 int is_whitespace(char c);
+char *dupstr(const char *s);
+char *dupnstr(const char *s, size_t len);

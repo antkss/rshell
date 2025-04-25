@@ -20,6 +20,7 @@ void handler(int sig) {
 #endif
 
 int main(int argc, char *args[]) {
+	setup_reap_child();
 	int opt = 0;
 	int remote = 0;
 	char *home_path = NULL;

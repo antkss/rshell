@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <time.h>
 #include <linux/limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -10,6 +11,7 @@
 #include <fcntl.h>
 #include <readline/readline.h>
 #include "utils.h"
+#include "alias.h"
 
 char* peek(TokenStream *ts) {
     return ts->pos < ts->count ? ts->tokens[ts->pos] : NULL;
@@ -21,7 +23,7 @@ char* next(TokenStream *ts) {
 ASTNode* new_node(NodeType type, const char *value, ASTNode *left, ASTNode *right) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = type;
-    node->value = value ? strdup(value) : NULL;
+    node->value = value ? dupstr(value) : NULL;
     node->left = left;
     node->right = right;
     return node;
@@ -132,7 +134,7 @@ ASTNode* parse_sequence(TokenStream *ts) {
 
 
 
-TokenStream *tokenize(char *input) {
+TokenStream *tokenize(const char *input) {
     TokenStream *ts = malloc(sizeof(TokenStream));
 	size_t capacity = sizeof(char *) * 8;
     ts->tokens = malloc(capacity);
@@ -204,7 +206,7 @@ TokenStream *tokenize(char *input) {
             if (token_len > 0) {
                 token[token_len] = '\0';
 				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
-                ts->tokens[ts->count++] = strdup(token);
+                ts->tokens[ts->count++] = dupstr(token);
                 token_len = 0;
             }
 
@@ -220,13 +222,13 @@ TokenStream *tokenize(char *input) {
 			}
             token[token_len] = '\0';
 			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
-            ts->tokens[ts->count++] = strdup(token);
+            ts->tokens[ts->count++] = dupstr(token);
             token_len = 0;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_whitespace(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
 				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
-                ts->tokens[ts->count++] = strdup(token);
+                ts->tokens[ts->count++] = dupstr(token);
                 token_len = 0;
             }
         } else {
@@ -238,7 +240,7 @@ TokenStream *tokenize(char *input) {
     if (token_len > 0) {
         token[token_len] = '\0';
 		ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
-        ts->tokens[ts->count++] = strdup(token);
+        ts->tokens[ts->count++] = dupstr(token);
     }
 
     ts->tokens[ts->count] = NULL;
@@ -422,7 +424,7 @@ char *concat_tokens(TokenStream *ts) {
        }
        return concated;
 }
-void free_tokens(TokenStream *ts) {
+void free_ts(TokenStream *ts) {
     for (int i = 0; i < ts->count; i++) {
         free(ts->tokens[i]);
     }
@@ -432,12 +434,12 @@ void free_tokens(TokenStream *ts) {
 char **extract_line(const char *input) {
     size_t capacity = sizeof(char*) * 8;  // Start small and grow
     char **lines = malloc(capacity);
-	char *copy = strdup(input);
+	char *copy = dupstr(input);
 	char *line = strtok(copy, "\n");
 	size_t line_cnt = 0;
 	while (line) {
 		lines = ralloc(lines, &capacity, line_cnt * sizeof(char *) + 1);
-		lines[line_cnt++] = strdup(line);
+		lines[line_cnt++] = dupstr(line);
 		line = strtok(NULL, "\n");
 	}
 	lines[line_cnt] = NULL;
@@ -517,19 +519,80 @@ char *expand_variables(const char *input) {
     result[j] = '\0';
     return result;
 }
-void parse_call(char *input) {
+
+void replace_alias(TokenStream *ts) {
+    if (!ts || ts->count == 0) return;
+
+    const char *ops[] = {"&&", "||", "|", ";", "\n", NULL};
+    int i = 0;
+    while (i < ts->count) {
+        int should_expand = (i == 0);
+        for (int j = 0; ops[j]; j++) {
+            if (i > 0 && strcmp(ts->tokens[i - 1], ops[j]) == 0) {
+                should_expand = 1;
+                break;
+            }
+        }
+
+        if (!should_expand) {
+            i++;
+            continue;
+        }
+
+        const char *alias_value = find_alias(ts->tokens[i]);
+        if (!alias_value) {
+            i++;
+            continue;
+        }
+
+        TokenStream *alias_ts = tokenize(alias_value);
+        if (!alias_ts || alias_ts->count == 0) {
+            i++;
+            continue;
+        }
+
+        int new_count = ts->count + alias_ts->count - 1;
+
+        ts->tokens = realloc(ts->tokens, sizeof(char *) * (new_count + 1));
+        if (!ts->tokens) exit(1);
+
+        // Shift to make room
+        memmove(
+            &ts->tokens[i + alias_ts->count],
+            &ts->tokens[i + 1],
+            sizeof(char *) * (ts->count - i - 1)
+        );
+
+        // Copy alias tokens
+        for (int j = 0; j < alias_ts->count; j++) {
+            ts->tokens[i + j] = dupstr(alias_ts->tokens[j]);
+        }
+
+        ts->count = new_count;
+        ts->tokens[ts->count] = NULL;
+
+        i += alias_ts->count; // move past the inserted tokens
+
+        // cleanup
+		free_ts(alias_ts);
+    }
+}
+
+void parse_call(const char *input) {
 	char **lines = extract_line(input);
 	for (int i = 0; lines[i]; i++) {
 		char *newline = expand_variables(lines[i]);
 		TokenStream *ts = tokenize(newline);
 		// shell_print("lines: %s \n",lines[i]);
 		// print_tokens(ts);
+		replace_alias(ts);
 		ASTNode *root = parse_sequence(ts);
+		// shell_print("ast normal: \n");
 		// print_ast(root, 3);
 		if (root) {
 			eval_ast(root);
 			free(newline);
-			free_tokens(ts);
+			free_ts(ts);
 			free_ast(root);
 		}
 

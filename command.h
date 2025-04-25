@@ -17,6 +17,10 @@ typedef struct {
 	int enable;
 	const char *description;
 } CommandEntry;
+typedef struct {
+	char *name;
+	char *phrase;
+} alias_s;
 
 #define CMD_ENTRY(cmd, enable, des) { #cmd, cmd##_cmd, enable, des}
 #define NEW_CMD(cmd) int cmd##_cmd(char **args, int argc)
