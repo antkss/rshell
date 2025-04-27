@@ -59,3 +59,25 @@ void print_aliases() {
         }
     }
 }
+void unalias(const char *name) {
+    unsigned int index = hash(name);
+    Alias *head = alias_table[index];
+    Alias *prev = NULL;
+    while (head) {
+        if (strcmp(head->name, name) == 0) {
+            if (prev) {
+                prev->next = head->next; 
+            } else {
+                alias_table[index] = head->next; 
+            }
+
+            free(head->name);
+            free(head->value);
+            free(head);
+            return;
+        }
+        prev = head;
+        head = head->next;
+    }
+    printf("Alias '%s' not found.\n", name);
+}

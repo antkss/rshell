@@ -11,5 +11,7 @@ void add_alias(const char *name, const char *value);
 const char *find_alias(const char *name);
 void print_aliases();
 unsigned int hash(const char *str);
+void unalias(const char *name);
+
 
 

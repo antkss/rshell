@@ -458,6 +458,16 @@ NEW_CMD(alias) {
 	}
 	return 0;
 }
+NEW_CMD(unalias) {
+	if (argc == 1) {
+		print_aliases();
+		return 0;
+	}
+	for (int i = 1; i < argc; i++) {
+		unalias(args[i]);
+	}
+	return 0;
+}
 CommandEntry command_table[] = {
     CMD_ENTRY(ls, 0, "list folder and file of a path"),
     CMD_ENTRY(cd, 1, "change directory"),
@@ -477,6 +487,7 @@ CommandEntry command_table[] = {
 	CMD_ENTRY(time, 1, "estimate time for program execution"),
 	CMD_ENTRY(toggle, 1, "builtin command toggle"),
 	CMD_ENTRY(alias, 1, "link command"),
+	CMD_ENTRY(unalias, 1, "unalias"),
 	CMD_ENTRY(help, 1, "help me bro !"),
 	{NULL, NULL, 0, NULL},
 };

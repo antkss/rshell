@@ -43,11 +43,8 @@ void handle_sigint(int sig) {
 }
 void read_config() {
 	size_t read_size;
-	size_t file_len = sizeof(CONFIG_FILE_NAME);
-	char *config_path = malloc(home_len + file_len + 0x10);
-	memcpy(config_path, home, home_len);
-	memcpy(&config_path[home_len], "/", 1);
-	memcpy(&config_path[home_len + 1], CONFIG_FILE_NAME, file_len); // avoid using format string
+	char *config_path = malloc(home_len + strlen(CONFIG_FILE_NAME) + 0x10);
+	sprintf(config_path, "%s/%s", home, CONFIG_FILE_NAME);
 	char *config_read = read_file(config_path, &read_size);
 	if (read_size < ARG_MAX && config_read) {
 		parse_call(config_read);

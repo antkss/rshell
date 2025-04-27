@@ -42,5 +42,6 @@ $(TARGET_CLIENT): $(CLIENT_SRC)
 
 # Clean all builds
 clean:
-	rm -f $(OBJ) $(TARGET) $(TARGET_CLIENT) $(DEBUG_TARGET)
+	rm -f $(OBJ) $(TARGET) $(TARGET_CLIENT) $(DEBUG_TARGET) *h.gch
+
 
