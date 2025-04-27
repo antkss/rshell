@@ -13,6 +13,7 @@
 #include <pty.h>
 #include <sys/wait.h>
 #include "daemon.h"
+#include "user.h"
 #ifdef DEBUG
 void handler(int sig) {
     printf("signal: %d\n", sig);
@@ -22,8 +23,8 @@ void handler(int sig) {
 int main(int argc, char *args[]) {
 	setup_reap_child();
 	int opt = 0;
-	int remote = 0;
 	char *home_path = NULL;
+	char *user = NULL;
 #ifdef DEBUG
 	signal(SIGUSR1, handler);
 	pause();
@@ -38,36 +39,27 @@ int main(int argc, char *args[]) {
 		home_len = strlen(home);
 	}
 
-	while ((opt = getopt(argc, args, "r::")) != -1) {
+	while ((opt = getopt(argc, args, "r::s::")) != -1) {
 		switch (opt) {
 			case 'r':
-				remote = 1;
 				home_path = optarg;
+				if (home_path) {
+					setenv("HOME", home_path, 1);
+					home = home_path;
+					home_len = strlen(home_path);
+				}
+				remote_shell();
+				return 0;
+			case 's':
+				user = optarg;
+				if (user) switch_user(optarg);
 				break;
 			default:
-				fprintf(stderr, "Usage: %s [-r] home\n", args[0]);
+				fprintf(stderr, "Usage: %s [-r] [-s] home\n", args[0]);
 				return 1;
 		}
 	}
-	if (remote != 0) {
-		if (home_path) {
-			setenv("HOME", home_path, 1);
-			home = home_path;
-			home_len = strlen(home_path);
-		}
-		remote_shell();
-		return 0;
-	}
-	if (argc == 1) {
-		local_shell();
-	} else {
-		for (int i = 1; i < argc; i++) {
-			if (args[i]) {
-				parse_call(args[i]);
-			}
-		}
-
-	}
+	local_shell();
 
 	return 0;
 }

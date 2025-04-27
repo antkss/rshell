@@ -55,23 +55,6 @@ void shell_print(const char *format, ...) {
     fflush(stdout);            // Flush after printing
 }
 
-// char* mstrcat(int count, ...) {
-//     va_list args;
-//     va_start(args, count);
-// 	int total = 0;
-// 	char **buf_list = malloc(sizeof(char*) * count);
-// 	for (int i = 0; i < count; i++) {
-//         char *buf = va_arg(args, char *);
-// 		buf_list[i] = buf;
-// 		total += strlen(buf);
-// 	}
-// 	char *cat_buf = malloc(total + 0x10);
-//     for (int i = 0; i < count; ++i) {
-// 		strcat(cat_buf, buf_list[i]);
-//     }
-//     va_end(args);
-// 	return cat_buf;
-// }
 int check_path(const char *path) {
     struct stat st;
     if (stat(path, &st) == 0) {

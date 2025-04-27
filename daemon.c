@@ -144,15 +144,14 @@ void handle_client(int client_fd) {
 int basic_authencation(int client_fd) {
 	char path_file[] = ".rpass";
 	size_t file_len = sizeof(path_file);
-	char *rpass_full = malloc(file_len + home_len + 1);
+	char *rpass_full = malloc(file_len + home_len + 2);
 	char password[64];
 	char user[64];
 	char result = 0;
 	rpass_full[0] = 0;
-	strncat(rpass_full, home, home_len);
-	strcat(rpass_full, "/");
-	strncat(rpass_full, path_file, file_len);
-	// shell_print("rpass: %s \n", rpass_full);
+	memcpy(rpass_full, home, home_len);
+	memcpy(rpass_full + home_len, "/", 1);
+	memcpy(rpass_full + home_len + 1, path_file, file_len);
 	memset(password, 0, 64);
 	memset(user, 0, 64);
 	int fd = open(rpass_full, O_RDONLY);
@@ -176,6 +175,7 @@ int basic_authencation(int client_fd) {
 		}
 	}
 	write(client_fd, &result, 1);
+	free(rpass_full);
 	return result;
 }
 #ifdef DAEMON
