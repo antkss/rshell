@@ -9,27 +9,13 @@
 #define ALIGN 8
 #define HEADER_SIZE 8
 #define HEADER(chunk, size) chunk[0] = size;
+#define MINIMUM 0x10
 
 #define ALIGN_UP(size, align)  (((size) + (align) - 1) & ~((align) - 1))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 Pool *pool = NULL;
 // Internal helpers
 
-// static int bin_index(size_t size) {
-// 	size = ALIGN_UP(size, ALIGN);
-//     int idx = 0;
-//     size_t s = ALIGN;
-//     while (s < size && idx < BIN_COUNT - 1) {
-//         s <<= 1;
-//         idx++;
-//     }
-//     return idx;
-// }
-// static void insert_bin(void *ptr) {
-// 	__int64_t *chunk = ptr;
-//     int idx = bin_index(SIZE(chunk));
-//     pool->bins[idx] = ptr;
-// }
 
 static void insert_bin(void *ptr) {
     Chunk *chk = (Chunk *)ptr;
@@ -50,17 +36,6 @@ static void insert_bin(void *ptr) {
 }
 
 
-// static void remove_bin(Chunk *chunk, int idx) {
-    // Chunk **cur = &pool->bins[idx];
-    // while (*cur) {
-    //     if (*cur == chunk) {
-    //         *cur = chunk->next;
-    //         return;
-    //     }
-    //     cur = &(*cur)->next;
-    // }
-// }
-
 // Pool creation
 
 Pool *pool_create(size_t size) {
@@ -78,18 +53,6 @@ Pool *pool_create(size_t size) {
     return p;
 }
 
-// Allocator functions
-
-// void *bin_alloc(size_t size) {
-// 	int idx = bin_index(size);
-// 	if (pool->bins[idx]) {
-// 		void *chunk = pool->bins[idx];
-// 		pool->bins[idx] = 0;
-// 		return chunk;
-// 	}
-// 	return NULL;
-// }
-
 void *bin_alloc(size_t size) {
 	if (!pool->free_chunk) return NULL;
 	size = ALIGN_UP(size, ALIGN);
@@ -104,10 +67,28 @@ void *bin_alloc(size_t size) {
 				prev->next = tmp->next;
 			tmp->next = NULL;
 			return tmp; 
+		} else if (chk_size > size) {
+			if (chk_size - size > MINIMUM) {
+				__int64_t *ptr = (__int64_t *)tmp;
+				ptr[-1] = size;
+				size_t rest_size = chk_size - size;
+				__int64_t *rest_chk = (__int64_t *)((__int64_t)tmp + size);
+				rest_chk[-1] = rest_size;
+				if (prev == NULL) {
+					pool->free_chunk = (Chunk *)rest_chk;
+					pool->free_chunk->next = tmp->next;
+				} else {
+					prev->next = (Chunk *)rest_chk;
+					prev->next->next = tmp->next;
+				}
+				tmp->next = NULL;
+				return tmp;
+			}
 		}
 		prev = tmp;
 		tmp = tmp->next;
 	}
+	tmp = pool->free_chunk;
 	return NULL;
 }
 void colapse(Pool *pool) {
@@ -149,7 +130,8 @@ void *alloc(size_t size) {
 	};
 	colapse(pool);
 	// now size will be calculated by this include HEADER_SIZE
-    size = ALIGN_UP(size > 0x18 ? size : 0x18, ALIGN) + HEADER_SIZE;
+	if (size == 0) return NULL;
+    size = ALIGN_UP(size > 8 ? size : 8, ALIGN) + HEADER_SIZE;
 
 	void *bin_chk = bin_alloc(size);
 	if (bin_chk) return bin_chk;
@@ -192,14 +174,15 @@ void *realloc_mem(void *ptr, size_t size) {
     dealloc(ptr);
     return new_ptr;
 }
-
-// API overrides
+#if MYHEAP
 
 void *malloc(size_t size) {
     return alloc(size);
 }
 
 void free(void *ptr) {
+	size_t region = (__int64_t)ptr - (__int64_t)pool->start;
+	if (region > pool->used) return;
     dealloc(ptr);
 }
 
@@ -210,6 +193,7 @@ void *calloc(size_t num, size_t size) {
 	size_t total = num * size;
 	return alloc(total);
 }
+#endif
 
 void pool_destroy(Pool *p) {
     if (brk(p->original_brk) == -1) {

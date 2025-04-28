@@ -26,3 +26,5 @@ void* ralloc(void *ptr, size_t *capacity, size_t dsize);
 int is_whitespace(char c);
 char *dupstr(const char *s);
 char *dupnstr(const char *s, size_t len);
+void *memmove(void *dest, const void *src, size_t n);
+

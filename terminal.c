@@ -26,3 +26,9 @@ void delete_at_cursor() {
 }
 
 
+void save_cursor() {
+	shell_print("\033[s");
+}
+void restore_cursor() {
+	shell_print("\033[u");
+}
