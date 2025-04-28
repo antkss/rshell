@@ -51,9 +51,10 @@ void read_config() {
 	char *config_read = read_file(config_path, &read_size);
 	if (read_size < ARG_MAX && config_read) {
 		parse_call(config_read);
-		free(config_path);
-		free(config_read);
+
 	}
+	free(config_path);
+	free(config_read);
 
 }
 void local_shell() {

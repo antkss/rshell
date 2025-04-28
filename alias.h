@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define TABLE_SIZE 128
+#define TABLE_SIZE 1000
 typedef struct Alias {
     char *name;
     char *value;

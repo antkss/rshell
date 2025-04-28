@@ -3,3 +3,4 @@ rshell
 test
 client
 debug
+readline.*
