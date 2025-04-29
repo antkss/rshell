@@ -31,7 +31,6 @@ daemonize: $(OBJ)
 	$(CXX) $(CFLAGS) -o $(TARGET) $^
 
 static: $(OBJ)
-	export CC="musl-gcc"
 	export CFLAGS="-g -static"
 	if [ ! -d ncurses-6.5 ]; then wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.5.tar.gz; tar -xf ncurses-6.5.tar.gz; cd ncurses-6.5 && ./configure --enable-static; fi
 	cd ncurses-6.5 && make
