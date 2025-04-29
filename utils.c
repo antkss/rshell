@@ -1,7 +1,14 @@
 #include "utils.h"
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <dirent.h>
+#include "terminal.h"
+#include "command.h"
 mode_t get_perm(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == -1) {
@@ -412,4 +419,10 @@ void *memmove(void *dest, const void *src, size_t n) {
     }
 
     return dest;
+}
+double ceil(double x) {
+    int xi = (int)x;
+    if (x > 0 && x != (double)xi)
+        return (double)(xi + 1);
+    return (double)xi;
 }

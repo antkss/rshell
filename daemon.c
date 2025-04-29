@@ -1,13 +1,25 @@
 #include "daemon.h"
-#include "command.h"
-#include <fcntl.h>
-#include <readline/chardefs.h>
-#include <signal.h>
+#include <linux/limits.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include <arpa/inet.h>          // for htons
+#include <fcntl.h>              // for open, O_RDONLY
+#include <netinet/in.h>         // for sockaddr_in, INADDR_ANY, in_addr
+#include <pty.h>                // for forkpty
+#include <readline/history.h>   // for add_history
+#include <readline/readline.h>  // for readline, rl_crlf, rl_on_new_line
+#include <signal.h>             // for kill, sigaction, size_t, SIGINT, sige...
+#include <stdio.h>              // for perror, NULL, printf
+#include <stdlib.h>             // for exit, free, malloc, getenv
+#include <string.h>             // for memcpy, memset, strtok, memcmp, strlen
+#include <sys/ioctl.h>          // for winsize, ioctl, TIOCSWINSZ
+#include <sys/select.h>         // for FD_ISSET, FD_SET, select, FD_ZERO
+#include <sys/socket.h>         // for recv, AF_INET, accept, bind, listen
+#include <sys/wait.h>           // for waitpid, WNOHANG
+#include <unistd.h>             // for close, read, write, fork
+#include "command.h"            // for shell_print, CONFIG_FILE_NAME, GENERI...
+#include "complete.h"           // for completion_setup
+#include "config.h"             // for read_file
+#include "parser.h"             // for parse_call
 #define PORT 4444
 char *home = NULL;
 size_t home_len = 0;
@@ -47,7 +59,7 @@ void read_config() {
 	memcpy(&config_path[home_len], "/", 1);
 	memcpy(&config_path[home_len + 1], CONFIG_FILE_NAME, file_len); 
 	char *config_read = read_file(config_path, &read_size);
-	if (read_size < ARG_MAX && config_read) {
+	if (config_read) {
 		parse_call(config_read);
 
 	}

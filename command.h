@@ -1,12 +1,3 @@
-#include <linux/limits.h>
-#include <signal.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <sys/stat.h>
 #pragma once
 
 typedef int (*command_fn)(char **args, int argc);

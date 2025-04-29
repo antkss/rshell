@@ -1,6 +1,5 @@
 #include "parser.h"
 #include <time.h>
-#include <linux/limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

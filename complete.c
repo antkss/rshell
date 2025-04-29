@@ -1,14 +1,14 @@
+#include <stdio.h>
 #include "complete.h"
-#include "command.h"
-#include <readline/history.h>
-#include <readline/readline.h>
-
-#include <dirent.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include "utils.h"
+#include <dirent.h>            
+#include <readline/readline.h> 
+#include <stddef.h>            
+#include <stdlib.h>            
+#include <unistd.h>            
+#include "command.h"           
+#include "utils.h"             
+#include <stdio.h>             
+#include <string.h>            
 extern CommandEntry command_table[];
 
 int is_executable(const char *path) {

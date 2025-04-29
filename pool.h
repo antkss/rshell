@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <unistd.h>
 #define BIN_COUNT 64
 typedef struct chk_t {

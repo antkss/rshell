@@ -1,4 +1,5 @@
 #include "config.h"
+#include <stdlib.h> 
 char *read_file(const char *filename, size_t *read_size) {
 	*read_size = 0;
     FILE *fp = fopen(filename, "rb");

@@ -1,24 +1,20 @@
 #include "command.h"
-#include <linux/limits.h>
-#include <inttypes.h>
-#include <signal.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include "parser.h"
-#include <stdarg.h>
-#include "terminal.h"
-#include "utils.h"
-#include <sys/time.h>
-#include <sys/resource.h>
-#include "alias.h"
+#include <fcntl.h>                     // for open, O_CREAT, O_RDONLY, SEEK_END
+#include <limits.h>                    // for XATTR_LIST_MAX
+#include <stddef.h>                    // for NULL, size_t
+#include <stdio.h>                     // for perror, fprintf, printf, rename
+#include <stdlib.h>                    // for free, malloc, exit, getenv
+#include <string.h>                    // for strlen, strcmp, strtok, strncmp
+#include <sys/resource.h>              // for getrusage, RUSAGE_CHILDREN
+#include <sys/stat.h>                  // for stat, chmod, mkdir
+#include <sys/time.h>                  // for timeval, gettimeofday
+#include <sys/types.h>                 // for mode_t, off_t, pid_t
+#include <sys/wait.h>                  // for wait
+#include <unistd.h>                    // for read, close, lseek, chdir, execvp
+#include "alias.h"                     // for print_aliases, add_alias, unalias
+#include "parser.h"                    // for parse_call
+#include "terminal.h"                  // for delete_at_cursor
+#include "utils.h"                     // for READ_BYTES, check_path, copy_file
 extern char **environ;
 extern pid_t child_pid;
 extern CommandEntry command_table[];

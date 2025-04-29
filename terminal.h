@@ -6,4 +6,6 @@ void delete_at_cursor();
 void save_cursor();
 void restore_cursor();
 void move(int x, int y);
+void move_prev_end();
+void move_next_start();
 

@@ -1,5 +1,8 @@
 #include "terminal.h"
 #include "command.h"
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
 struct winsize get_terminal_size(){
 	struct winsize w;
 
@@ -34,4 +37,14 @@ void restore_cursor() {
 }
 void move(int x, int y) {
 	shell_print("\033[%d;%dH");
+}
+void move_prev_end() {
+    struct winsize w = get_terminal_size();
+    shell_print("\033[A");
+    shell_print("\033[%dC", w.ws_col - 1);
+    fflush(stdout);
+}
+void move_next_start() {
+	shell_print("\033[E");
+    fflush(stdout);
 }

@@ -1,5 +1,8 @@
 #include "alias.h"
 #include "utils.h"
+#include <stdio.h>   // for printf
+#include <stdlib.h>  // for free, NULL, malloc
+#include <string.h>  // for strcmp
 
 
 Alias *alias_table[TABLE_SIZE];
