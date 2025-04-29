@@ -2,7 +2,7 @@
 # Compiler and flags
 CXX = gcc
 FLAG= 
-CXXFLAGS = -Wall -g -lreadline $(FLAG)
+CXXFLAGS = -Wall -g -lreadline -lm $(FLAG)
 DEBUG_FLAGS = -g -O0 -DDEBUG
 RELEASE_FLAGS = -O2
 

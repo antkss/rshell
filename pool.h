@@ -1,17 +1,19 @@
 #include <stdio.h>
 #include <unistd.h>
 #define BIN_COUNT 64
-typedef struct Chunk {
-	struct Chunk *next;
-} Chunk;
-
+typedef struct chk_t {
+	size_t size;
+} chk_t;
+typedef struct free_t {
+	size_t size;
+	struct free_t *next;
+} free_t;
 typedef struct {
     void *original_brk;
     void *start;
     size_t size;
     size_t used;
-	struct Chunk *free_chunk;
-    __int64_t *bins[BIN_COUNT];
+	free_t *free_chunk;
 } Pool;
 extern Pool *pool;
 void *alloc(size_t size);

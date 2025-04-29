@@ -26,16 +26,14 @@ enum {
 	FILES,
 };
 void handle_sigint(int sig) {
-	// shell_print("child: %d \n", child_pid);
     if (child_pid > 0) {
-        // Forward SIGINT to the child process
         kill(child_pid, SIGINT);
 		return;
     }
 
+    rl_crlf(); 
+    rl_on_new_line(); 
     rl_replace_line("", 0);
-    rl_crlf(); // newline
-    rl_on_new_line(); // move to new line
     rl_redisplay();
 	if (sockfd != 0) {
 		close(sockfd);
@@ -47,7 +45,7 @@ void read_config() {
 	char *config_path = malloc(home_len + file_len + 0x10);
 	memcpy(config_path, home, home_len);
 	memcpy(&config_path[home_len], "/", 1);
-	memcpy(&config_path[home_len + 1], CONFIG_FILE_NAME, file_len); // avoid using format string
+	memcpy(&config_path[home_len + 1], CONFIG_FILE_NAME, file_len); 
 	char *config_read = read_file(config_path, &read_size);
 	if (read_size < ARG_MAX && config_read) {
 		parse_call(config_read);
@@ -67,9 +65,8 @@ void local_shell() {
 	completion_setup();
 	while ((input = readline(psi_set)) != NULL) {
 		if (*input) {
-			add_history(input);  // Enable up/down arrow history
+			add_history(input);  
 			parse_call(input);
-			// shell_print("%s", input);
 		}
 		free(input);
 		input = NULL;
@@ -80,7 +77,6 @@ void handle_client(int client_fd) {
     pid_t pid;
     struct winsize ws;
 
-    // Read initial window size
     if (read(client_fd, &ws, sizeof(ws)) != sizeof(ws)) {
         perror("read winsize");
         close(client_fd);

@@ -32,3 +32,6 @@ void save_cursor() {
 void restore_cursor() {
 	shell_print("\033[u");
 }
+void move(int x, int y) {
+	shell_print("\033[%d;%dH");
+}
