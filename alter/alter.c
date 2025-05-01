@@ -1,3 +1,4 @@
+#if ALTER
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,3 +51,4 @@ int tputs(const char *str, int affcnt, int (*putc_fn)(int)) {
     }
     return 0;
 }
+#endif

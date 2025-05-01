@@ -50,7 +50,7 @@
 
 #include "xmalloc.h"
 
-#if defined (HAVE_GETPWUID) && !defined (HAVE_GETPW_DECLS)
+#if defined (HAVE_GETPWUID) && !defined (HAVE_GETPW_DECLS) && !STATIC
 extern struct passwd *getpwuid (uid_t);
 #endif /* HAVE_GETPWUID && !HAVE_GETPW_DECLS */
 
@@ -148,7 +148,7 @@ sh_get_home_dir (void)
     return (home_dir);
 
   home_dir = (char *)NULL;
-#if defined (HAVE_GETPWUID)
+#if defined (HAVE_GETPWUID) && !STATIC
 #  if defined (__TANDEM)
   entry = getpwnam (getlogin ());
 #  else
@@ -158,7 +158,7 @@ sh_get_home_dir (void)
     home_dir = savestring (entry->pw_dir);
 #endif
 
-#if defined (HAVE_GETPWENT)
+#if defined (HAVE_GETPWENT) && !STATIC
   endpwent ();		/* some systems need this */
 #endif
 

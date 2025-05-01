@@ -2358,7 +2358,7 @@ rl_completion_matches (const char *text, rl_compentry_func_t *entry_function)
 char *
 rl_username_completion_function (const char *text, int state)
 {
-#if defined (_WIN32) || defined (__OPENNT) || !defined (HAVE_GETPWENT)
+#if defined (_WIN32) || defined (__OPENNT) || !defined (HAVE_GETPWENT) || STATIC
   return (char *)NULL;
 #else /* !_WIN32 && !__OPENNT) && HAVE_GETPWENT */
   static char *username = (char *)NULL;

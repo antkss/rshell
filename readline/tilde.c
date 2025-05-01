@@ -45,10 +45,10 @@ static void *xmalloc (), *xrealloc ();
 #endif /* TEST || STATIC_MALLOC */
 
 #if !defined (HAVE_GETPW_DECLS)
-#  if defined (HAVE_GETPWUID)
+#  if defined (HAVE_GETPWUID) && !STATIC
 extern struct passwd *getpwuid (uid_t);
 #  endif
-#  if defined (HAVE_GETPWNAM)
+#  if defined (HAVE_GETPWNAM) && !STATIC
 extern struct passwd *getpwnam (const char *);
 #  endif
 #endif /* !HAVE_GETPW_DECLS */
@@ -326,7 +326,7 @@ tilde_expand_word (const char *filename)
   /* No preexpansion hook, or the preexpansion hook failed.  Look in the
      password database. */
   dirname = (char *)NULL;
-#if defined (HAVE_GETPWNAM)
+#if defined (HAVE_GETPWNAM) && !STATIC
   user_entry = getpwnam (username);
 #else
   user_entry = 0;
@@ -349,13 +349,13 @@ tilde_expand_word (const char *filename)
       if (dirname == 0)
 	dirname = savestring (filename);
     }
-#if defined (HAVE_GETPWENT)
+#if defined (HAVE_GETPWENT) && !STATIC
   else
     dirname = glue_prefix_and_suffix (user_entry->pw_dir, filename, user_len);
 #endif
 
   xfree (username);
-#if defined (HAVE_GETPWENT)
+#if defined (HAVE_GETPWENT) && !STATIC
   endpwent ();
 #endif
   return (dirname);
