@@ -3,7 +3,6 @@ rshell
 test
 client
 debug
-readline.*
 .back
 ncurses-6.5.tar.gz
 ncurses-6.5
