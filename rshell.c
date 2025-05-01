@@ -9,6 +9,7 @@
 #include "config.h"
 #include "complete.h"
 #include <arpa/inet.h>
+#include <string.h>
 #include <pty.h>
 #include <sys/wait.h>
 #include "daemon.h"

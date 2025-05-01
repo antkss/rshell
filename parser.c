@@ -204,7 +204,7 @@ TokenStream *tokenize(const char *input) {
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_operator_char(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
-				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
+				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
                 ts->tokens[ts->count++] = dupstr(token);
                 token_len = 0;
             }
@@ -220,13 +220,13 @@ TokenStream *tokenize(const char *input) {
 				i += 2;
 			}
             token[token_len] = '\0';
-			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
+			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
             ts->tokens[ts->count++] = dupstr(token);
             token_len = 0;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_whitespace(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
-				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
+				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
                 ts->tokens[ts->count++] = dupstr(token);
                 token_len = 0;
             }

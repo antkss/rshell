@@ -147,8 +147,9 @@ void *realloc_mem(void *ptr, size_t size) {
         return NULL;
     }
 
-    free_t *chunk = (free_t *)((chk_t *)ptr - 1);
-    if (chunk->size >= size + sizeof(chk_t)) {
+    chk_t *chunk = ((chk_t *)ptr - 1);
+	size = ALIGN_UP(size, ALIGN) + sizeof(chk_t);
+    if (chunk->size >= size) {
         return ptr;  
     }
 

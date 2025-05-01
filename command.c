@@ -1,6 +1,5 @@
 #include "command.h"
 #include <fcntl.h>                     // for open, O_CREAT, O_RDONLY, SEEK_END
-#include <limits.h>                    // for XATTR_LIST_MAX
 #include <stddef.h>                    // for NULL, size_t
 #include <stdio.h>                     // for perror, fprintf, printf, rename
 #include <stdlib.h>                    // for free, malloc, exit, getenv

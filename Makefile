@@ -2,9 +2,8 @@
 # Compiler and flags
 CXX = gcc
 FLAG= 
-CFLAGS = -Wall -g $(FLAG) -I./readline  
+CFLAGS = -Wall -g -I./readline $(FLAG)
 DEBUG_FLAGS = -O0 -DDEBUG
-RELEASE_FLAGS = -O2
 
 # Target names
 TARGET = rshell
@@ -18,10 +17,9 @@ ALTER = $(shell find ./alter -maxdepth 1 -type f -name "*.c" | sort)
 SRC = $(shell find . -maxdepth 1 -type f -name "*.c" | sort) $(EMBED)
 OBJ = $(SRC:.c=.o)
 HDR = $(shell find . -maxdepth 1 -type f -name "*.h")
+ALTER_OBJ = $(ALTER:.c=.o)
+.PHONY: all debug clean static musl-static
 
-.PHONY: all daemonize debug clean pool static musl-static alter
-
-# Default: Release build
 all: CFLAGS += -lncurses
 all: $(TARGET) $(TARGET_CLIENT)
 
@@ -29,40 +27,32 @@ debug: CFLAGS += $(DEBUG_FLAGS)
 debug: $(OBJ)
 	$(CXX) $(CFLAGS) -o $(DEBUG_TARGET) $^
 
-daemonize: CFLAGS += -DDAEMON
-daemonize: $(OBJ)
-	$(CXX) $(CFLAGS) -o $(TARGET) $^
-
-alter: CFLAGS += -I./alter
-alter: $(OBJ) $(ALTER:.c=.o)
-	$(CXX) $(RELEASE_FLAGS) -o $(TARGET) $^ $(CFLAGS)
-
-static: $(OBJ)
+static: CFLAGS += ncurses-6.5/lib/libncursesw.a
+static: $(OBJ) 
 	export CFLAGS="-g -static"
 	if [ ! -d ncurses-6.5 ]; then wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.5.tar.gz; tar -xf ncurses-6.5.tar.gz; rm ncurses-6.5.tar.gz; cd ncurses-6.5 && ./configure --enable-static; fi
 	cd ncurses-6.5 && make
-	gcc -g -o $(TARGET) $(OBJ) ncurses-6.5/lib/libncursesw.a
+	$(CXX) -o $(TARGET) $(OBJ) $(CFLAGS)
 musl-static: $(OBJ)
 	export CFLAGS="-g -static"
 	if [ ! -d ncurses-6.5 ]; then wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.5.tar.gz; tar -xf ncurses-6.5.tar.gz; rm ncurses-6.5.tar.gz; cd ncurses-6.5 && ./configure --enable-static; fi
 	cd ncurses-6.5 && make
-	musl-gcc -g -o $(TARGET) $(OBJ) ncurses-6.5/lib/libncursesw.a -static
-pool: CFLAGS += -DMYHEAP
-pool: all
-# Release build of main target
+musl-static:
+	musl-gcc -o $(TARGET) $(OBJ) $(CFLAGS) ncurses-6.5/lib/libncursesw.a -static
+alter: CFLAGS += -I./alter
+alter: $(OBJ) $(ALTER_OBJ)
+	$(CXX) -o $(TARGET) $(OBJ) $(ALTER_OBJ) $(CFLAGS)
 $(TARGET): $(OBJ)
-	$(CXX)  $(RELEASE_FLAGS) -o $@ $^ $(CFLAGS)
+	$(CXX)  -o $@ $^ $(CFLAGS)
 
-# Client target 
 $(TARGET_CLIENT): $(CLIENT_SRC)
 	$(CXX) -o $@ $^
 
-# Rule for compiling .c to .o
 %.o: %.c $(HDR)
 	$(CXX)  -c $< -o $@ $(CFLAGS)
 
 # Clean all builds
 clean:
-	rm -f $(OBJ) $(TARGET) $(TARGET_CLIENT) $(DEBUG_TARGET) *.h.gch readline/*.h.gch alter/*.h.gch
+	rm -f $(OBJ) $(TARGET) $(ALTER_OBJ) $(TARGET_CLIENT) $(DEBUG_TARGET) *.h.gch readline/*.h.gch alter/*.h.gch
 
 

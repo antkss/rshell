@@ -1,5 +1,7 @@
-#include "daemon.h"
+#if __has_include(<linux/limits.h>)
 #include <linux/limits.h>
+#endif
+#include "daemon.h"
 #include <stdio.h>
 #include <arpa/inet.h>          // for htons
 #include <fcntl.h>              // for open, O_RDONLY
