@@ -8,4 +8,5 @@ readline.*
 ncurses-6.5.tar.gz
 ncurses-6.5
 readline-8.2.tar.gz
-readline-8.2
+compile_commands.json
+.cache

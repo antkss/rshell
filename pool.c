@@ -11,8 +11,6 @@
 #define ALIGN_UP(size, align)  (((size) + (align) - 1) & ~((align) - 1))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 Pool *pool = NULL;
-// Internal helpers
-
 
 static void insert_bin(void *ptr) {
     free_t *chk = (free_t *)((chk_t *)ptr - 1);
