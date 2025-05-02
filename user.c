@@ -10,20 +10,24 @@
 extern char *home;
 extern size_t home_len;
 int strtoi(const char *nptr, int base, int *out);
-int switch_user(const char *target) {
+int switch_user(const char *target, const char *home) {
 #if !STATIC
     struct passwd *pwd = getpwnam(target);
     if (pwd == NULL) {
         perror("getpwnam failed");
         return -1;  
     }
+	if (home) pwd->pw_dir = (char *)home;
 #else 
 	shell_print("Use uid instead of username: \n");
 	struct passwd *pwd = malloc(sizeof(struct passwd));
 	char *end;
     pwd->pw_gid = strtol(target, &end, 10);
 	pwd->pw_uid = pwd->pw_gid;
-	pwd->pw_dir = "/";
+	if (home)
+		pwd->pw_dir = home;
+	else 
+		pwd->pw_dir = "/";
 #endif
     shell_print("Switching to user: %s\n", target);
     if (setgid(pwd->pw_gid) != 0) {

@@ -29,7 +29,7 @@ debug: $(OBJ)
 
 static: CFLAGS += -static -DSTATIC
 LIB = ncurses-6.5/lib/libncursesw.a
-static: $(OBJ)
+static: $(OBJ) $(TARGET_CLIENT)
 	@if echo "$(FLAG)" | grep -q -- "-DALTER"; then \
 		echo "skip downloading ncurses..."; \
 		$(CXX) -o $(TARGET) $(OBJ) $(CFLAGS); \
@@ -44,11 +44,10 @@ static: $(OBJ)
 		cd ncurses-6.5 && make; cd ..;\
 		$(CXX) -o $(TARGET) $(OBJ) $(LIB) $(CFLAGS); \
 	fi
-musl-static: $(OBJ)
+musl-static: $(OBJ) $(TARGET_CLIENT)
 	export CFLAGS="-g -static"
 	if [ ! -d ncurses-6.5 ]; then wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.5.tar.gz; tar -xf ncurses-6.5.tar.gz; rm ncurses-6.5.tar.gz; cd ncurses-6.5 && ./configure --enable-static; fi
 	cd ncurses-6.5 && make
-musl-static:
 	musl-gcc -o $(TARGET) $(OBJ) $(CFLAGS) $(LIB) -static
 alter: CFLAGS += -I./alter -DALTER
 alter: $(OBJ)

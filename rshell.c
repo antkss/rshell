@@ -25,6 +25,7 @@ int main(int argc, char *args[]) {
 	int opt = 0;
 	char *home_path = NULL;
 	char *user = NULL;
+	int h_seen = 0;
 #ifdef DEBUG
 	signal(SIGUSR1, handler);
 	pause();
@@ -38,10 +39,33 @@ int main(int argc, char *args[]) {
 	} else {
 		home_len = strlen(home);
 	}
-
-	while ((opt = getopt(argc, args, "r::s::")) != -1) {
+	while ((opt = getopt(argc, args, "h::s::r::")) != -1) {
 		switch (opt) {
+			case 'h':
+				home_path = optarg;
+				h_seen = 1;
+				if (home_path) {
+					setenv("HOME", home_path, 1);
+					home = home_path;
+					home_len = strlen(home_path);
+					if (chdir(home) != 0) {
+						perror("Failed to change directory");
+						return -1;
+					}
+				} else {
+					fprintf(stderr, "home_path must be specified \n");
+					return 1;
+				}
+				break;
+			case 's':
+				user = optarg;
+				if (user) switch_user(optarg, home_path);
+				break;
 			case 'r':
+				if (optind < argc) {
+					fprintf(stderr, "Error: -r must be the last option.\n");
+					return 1;
+				}
 				home_path = optarg;
 				if (home_path) {
 					setenv("HOME", home_path, 1);
@@ -50,12 +74,8 @@ int main(int argc, char *args[]) {
 				}
 				remote_shell();
 				return 0;
-			case 's':
-				user = optarg;
-				if (user) switch_user(optarg);
-				break;
 			default:
-				fprintf(stderr, "Usage: %s [-r] [-s] home\n", args[0]);
+				fprintf(stderr, "Usage: %s [-r] + home_path | [-s] + user | [-h] + home_path \n", args[0]);
 				return 1;
 		}
 	}

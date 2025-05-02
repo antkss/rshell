@@ -6,6 +6,6 @@
 #include <grp.h>
 #include <pwd.h>
 #include <errno.h>
-int switch_user(const char *target_user);
+int switch_user(const char *target, const char * home);
 
 
