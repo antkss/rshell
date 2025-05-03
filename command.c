@@ -17,6 +17,7 @@
 extern char **environ;
 extern pid_t child_pid;
 extern CommandEntry command_table[];
+extern void free_lines(char **lines);
 
 NEW_CMD(clear) {
 	shell_print("\033c");
@@ -49,8 +50,8 @@ NEW_CMD(exit) {
 }
 
 NEW_CMD(ls){
-	char *content[XATTR_LIST_MAX];
-	int count = 0;
+	char **content = NULL;
+	size_t count = 0;
 	int is_all = 0;
 	int value = 0;
 	// get options
@@ -67,26 +68,20 @@ NEW_CMD(ls){
 	int real_argc = argc - op_num;
 	if (real_argc == 1 || real_argc == 2) {
 		char *path = args[1];
-		// shell_print("%s \n", path);
 		if (path == NULL) path = ".";
-		value = get_list_files(path, content, &count);
+		content = get_list_files(path, &count);
 		sort_files(content, count);
 		pretty_print_list(content, path, count, is_all);
-		for (int i = 0; i < count; i++) {
-			free(content[i]);
-		}
+		free_lines(content);
 	} else {
-		// get list files, folders
 		for (int i = 1; i < argc; i++) {
 			char *path = args[i];
 			shell_print("%s: \n", path);
 			if (path != NULL) {
-				value = get_list_files(path, content, &count);
+				content = get_list_files(path, &count);
 				sort_files(content, count);
 				pretty_print_list(content, path, count, is_all);
-				for (int i = 0; i < count; i++) {
-					free(content[i]);
-				}
+				free_lines(content);
 			}
 
 		}
@@ -488,6 +483,7 @@ CommandEntry command_table[] = {
 };
 
 int call_command(const char *cmd, char **args, int argc) {
+	int return_code = 0;
 	// run builtin command first
 	for (int i = 0; command_table[i].name; ++i) {
 		if (command_table[i].enable != 0 && strcmp(command_table[i].name, cmd) == 0) {
@@ -498,7 +494,7 @@ int call_command(const char *cmd, char **args, int argc) {
 	child_pid = fork();
 	if (child_pid == 0) {
 		// call command from system
-        execvp(args[0], args);
+        return_code = execvp(args[0], args);
 		shell_print("command: %s \n", args[0]);
         perror("execvp");
 		exit(EXIT_FAILURE);
@@ -508,6 +504,6 @@ int call_command(const char *cmd, char **args, int argc) {
         perror("fork failed");
     }
 	child_pid = -1;
-	return EXIT_FAILURE;
+	return return_code;
 }
 

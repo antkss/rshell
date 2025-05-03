@@ -8,7 +8,7 @@ enum {
 };
 int compare_first_char(const void *a, const void *b);
 void sort_files(char **files, int file_count);
-int get_list_files(const char *path, char* content[], int *count);
+char **get_list_files(const char *path, size_t *file_count);
 void pretty_print_list(char *files[], const char *path, int file_count, int is_all);
 int copy_file(char *oldpath, char *newpath);
 int is_file_exist(char *path);

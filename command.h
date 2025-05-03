@@ -27,7 +27,6 @@ void print_sign(char sign[]);
 void shell_print(const char *format, ...);
 int remove_recursive(char *path);
 int is_dir(char *path);
-int get_list_files(const char *path, char* content[], int *count);
 int is_exist(char *buffer, char *buff_array[], int count); 
 int find_pos_token(char **args, int argc, char *target, int cur_pos);
 int parse_option(char **args, int argc, char **option);

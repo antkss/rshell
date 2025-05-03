@@ -195,28 +195,32 @@ void pretty_print_list(char *files[], const char *path, int file_count, int is_a
     free(lengths);
     free(col_widths);
 }
-int get_list_files(const char *path, char* content[], int *count) {
+char **get_list_files(const char *path, size_t *file_count) {
     DIR *dir ;
-	if (path == NULL) return -1;
+	char **content = malloc(50 * sizeof(char *) + sizeof(char *));
+	size_t count = 0;
+	if (path == NULL) return NULL;
 	dir = opendir(path);
     if (dir == NULL) {
         perror("opendir failed");
-        return -1;
+        return NULL;
     }
-
     struct dirent *entry;
-	*count = 0;
+	count = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+			content = realloc(content, count * sizeof(char *) + sizeof(char *));
 			unsigned int size = strlen(entry->d_name);
-			content[*count] = malloc(size + 0x10);
-			memset(content[*count], 0, size + 10);
-			strncpy(content[*count], entry->d_name, size);
-			*count += 1;
+			content[count] = malloc(size + 1);
+			memcpy(content[count], entry->d_name, size + 1);
+			content[count][size] = 0;
+			count += 1;
         }
     }
+	content[count] = 0;
+	*file_count = count;
     closedir(dir);
-	return 0;
+	return content;
 }
 int copy_file(char *oldpath, char *newpath) {
 	int src_fd = open(oldpath, O_RDONLY);

@@ -25,7 +25,7 @@ int switch_user(const char *target, const char *home) {
     pwd->pw_gid = strtol(target, &end, 10);
 	pwd->pw_uid = pwd->pw_gid;
 	if (home)
-		pwd->pw_dir = home;
+		pwd->pw_dir = (char *)home;
 	else 
 		pwd->pw_dir = "/";
 #endif

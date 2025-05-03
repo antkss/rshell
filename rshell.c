@@ -25,7 +25,6 @@ int main(int argc, char *args[]) {
 	int opt = 0;
 	char *home_path = NULL;
 	char *user = NULL;
-	int h_seen = 0;
 #ifdef DEBUG
 	signal(SIGUSR1, handler);
 	pause();
@@ -43,7 +42,6 @@ int main(int argc, char *args[]) {
 		switch (opt) {
 			case 'h':
 				home_path = optarg;
-				h_seen = 1;
 				if (home_path) {
 					setenv("HOME", home_path, 1);
 					home = home_path;
