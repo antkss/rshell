@@ -11,6 +11,7 @@
 #include <readline/readline.h>
 #include "utils.h"
 #include "alias.h"
+#include <glob.h>
 
 char* peek(TokenStream *ts) {
     return ts->pos < ts->count ? ts->tokens[ts->pos] : NULL;
@@ -145,6 +146,7 @@ TokenStream *tokenize(const char *input) {
     int in_backtick = 0;
     int escaped = 0;
     int nested_subs = 0;
+	int quoted = 0;
 	
 	size_t token_capacity = 0x200;
     char *token = malloc(token_capacity);
@@ -154,7 +156,7 @@ TokenStream *tokenize(const char *input) {
         char c = input[i];
         char next = input[i + 1] ? input[i + 1] : '\0';
         char next_next = input[i + 2] ? input[i + 2] : '\0';
-		token = ralloc(token, &token_capacity, token_len + 14); // hope that my count is tight
+		token = ralloc(token, &token_capacity, token_len + 14 + 1); // hope that my count is tight
         // Handle comment outside quotes
         if (!in_single_quote && !in_double_quote && !in_backtick && c == '#') {
             break; // Skip rest of the line
@@ -171,11 +173,14 @@ TokenStream *tokenize(const char *input) {
             }
         } else if (c == '\'' && !in_double_quote && !in_backtick) {
             in_single_quote = !in_single_quote;
+			quoted = 1;
         } else if (c == '"' && !in_single_quote && !in_backtick) {
             in_double_quote = !in_double_quote;
+			quoted = 1;
         } else if (c == '`' && !in_single_quote && !in_double_quote) {
             in_backtick = !in_backtick;
             token[token_len++] = c; // count 9 
+			quoted = 1;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && c == '$' && next == '(') {
             token[token_len++] = c; // count 8
             token[token_len++] = '('; // count 7
@@ -197,14 +202,14 @@ TokenStream *tokenize(const char *input) {
             while (input[i] && nested_subs > 0) {
                 if (input[i] == '(') nested_subs++;
                 else if (input[i] == ')') nested_subs--;
-				token = ralloc(token, &token_capacity, token_len + 1);
+				token = ralloc(token, &token_capacity, token_len + 2);
                 token[token_len++] = input[i++]; // add long token 1
             }
             i--;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_operator_char(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
-				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
+				ts->tokens = ralloc(ts->tokens, &capacity, (ts->count + 2) * sizeof(char *));
                 ts->tokens[ts->count++] = dupstr(token);
                 token_len = 0;
             }
@@ -220,15 +225,29 @@ TokenStream *tokenize(const char *input) {
 				i += 2;
 			}
             token[token_len] = '\0';
-			ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
+			ts->tokens = ralloc(ts->tokens, &capacity, (ts->count + 2)* sizeof(char *));
             ts->tokens[ts->count++] = dupstr(token);
             token_len = 0;
         } else if (!in_single_quote && !in_double_quote && !in_backtick && is_whitespace(c)) {
             if (token_len > 0) {
                 token[token_len] = '\0';
-				ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + sizeof(char *));
-                ts->tokens[ts->count++] = dupstr(token);
+				// check glob
+				if (is_glob(token) && !quoted) {
+					glob_t results;
+					if (glob(token, 0, NULL, &results) == 0) {
+						for (size_t i = 0; i < results.gl_pathc; ++i) {
+							ts->tokens = ralloc(ts->tokens, &capacity, (ts->count + 2) * sizeof(char *));
+							ts->tokens[ts->count++] = dupstr(results.gl_pathv[i]);
+						}
+						globfree(&results);
+					} else {
+						printf("no matches.\n");
+					}
+				} else {
+					ts->tokens[ts->count++] = dupstr(token);
+				}
                 token_len = 0;
+				quoted = 0;
             }
         } else {
             token[token_len++] = c; // count 1
@@ -238,8 +257,21 @@ TokenStream *tokenize(const char *input) {
 
     if (token_len > 0) {
         token[token_len] = '\0';
-		ts->tokens = ralloc(ts->tokens, &capacity, ts->count * sizeof(char *) + 1);
-        ts->tokens[ts->count++] = dupstr(token);
+		// check glob
+		if (is_glob(token) && !quoted) {
+			glob_t results;
+			if (glob(token, 0, NULL, &results) == 0) {
+				for (size_t i = 0; i < results.gl_pathc; ++i) {
+					ts->tokens = ralloc(ts->tokens, &capacity, (ts->count + 2) * sizeof(char *));
+					ts->tokens[ts->count++] = dupstr(results.gl_pathv[i]);
+				}
+				globfree(&results);
+			} else {
+				printf("no matches.\n");
+			}
+		} else {
+			ts->tokens[ts->count++] = dupstr(token);
+		}
     }
 
     ts->tokens[ts->count] = NULL;
@@ -437,7 +469,7 @@ char **extract_line(const char *input) {
 	char *line = strtok(copy, "\n");
 	size_t line_cnt = 0;
 	while (line) {
-		lines = ralloc(lines, &capacity, line_cnt * sizeof(char *) + 1);
+		lines = ralloc(lines, &capacity, (line_cnt + 2) * sizeof(char *));
 		lines[line_cnt++] = dupstr(line);
 		line = strtok(NULL, "\n");
 	}
@@ -470,23 +502,20 @@ char *expand_variables(const char *input) {
     while (input[i]) {
 
 		if (input[i] == '~') {
-            // Handle tilde expansion (~ -> $HOME)
             if (i == 0 || input[i-1] == ' ' || input[i-1] == '\t' || input[i-1] == '=') {
-                // Only expand if it's at the start or after space/equals
                 if (home) {
                     size_t home_len = strlen(home);
-					result = ralloc(result, &capacity, j + home_len + 2);
+					result = ralloc(result, &capacity, j + home_len + 1);
 					memcpy(&result[j], home, home_len);
                     j += home_len;
 					result[j] = '\0';
                 }
                 i++; // Skip tilde
             } else {
-				result = ralloc(result, &capacity, j + 1);
+				result = ralloc(result, &capacity, j + 2);
                 result[j++] = input[i++];
             }
         } else if (input[i] == '$' && isalpha(input[i + 1]) && input[i - 1] != '\\') {
-            // Handle environment variable expansion
             i++; // skip '$'
 			size_t var_capacity = 0x100;
 			char *var = malloc(0x100);
@@ -494,7 +523,7 @@ char *expand_variables(const char *input) {
             int k = 0;
 
             while (isalnum(input[i]) || input[i] == '_') {
-				var = ralloc(var, &var_capacity, k + 1);
+				var = ralloc(var, &var_capacity, k + 2);
                 var[k++] = input[i++];
             }
             var[k] = '\0';
@@ -503,14 +532,14 @@ char *expand_variables(const char *input) {
 			free(var);
             if (val) {
                 size_t vlen = strlen(val);
-				result = ralloc(result, &capacity, j + vlen + 2);
+				result = ralloc(result, &capacity, j + vlen + 1);
 				memcpy(&result[j], val, vlen);
                 j += vlen;
 				result[j] = '\0';
             }
         } else {
-			result = ralloc(result, &capacity, j + 1);
-            result[j++] = input[i++]; // Copy other characters as is
+			result = ralloc(result, &capacity, j + 2);
+            result[j++] = input[i++];
         }
 
     }
@@ -524,6 +553,7 @@ void replace_alias(TokenStream *ts) {
 
     const char *ops[] = {"&&", "||", "|", ";", "\n", NULL};
     int i = 0;
+	size_t capacity = ts->count * sizeof(char *);
     while (i < ts->count) {
         int should_expand = (i == 0);
         for (int j = 0; ops[j]; j++) {
@@ -552,17 +582,15 @@ void replace_alias(TokenStream *ts) {
 
         int new_count = ts->count + alias_ts->count - 1;
 
-        ts->tokens = realloc(ts->tokens, sizeof(char *) * (new_count + 1));
+        ts->tokens = ralloc(ts->tokens, &capacity, sizeof(char *) * (new_count + 1));
         if (!ts->tokens) exit(1);
 
-        // Shift to make room
         memmove(
             &ts->tokens[i + alias_ts->count],
             &ts->tokens[i + 1],
             sizeof(char *) * (ts->count - i - 1)
         );
 
-        // Copy alias tokens
         for (int j = 0; j < alias_ts->count; j++) {
             ts->tokens[i + j] = dupstr(alias_ts->tokens[j]);
         }
@@ -570,9 +598,9 @@ void replace_alias(TokenStream *ts) {
         ts->count = new_count;
         ts->tokens[ts->count] = NULL;
 
-        i += alias_ts->count; // move past the inserted tokens
+        i += alias_ts->count;
 
-        // cleanup
+		// clean up
 		free_ts(alias_ts);
     }
 }

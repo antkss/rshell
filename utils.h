@@ -26,4 +26,6 @@ char *dupstr(const char *s);
 char *dupnstr(const char *s, size_t len);
 void *memmove(void *dest, const void *src, size_t n);
 double ceil(double x); 
+int is_glob(const char *arg);
+
 

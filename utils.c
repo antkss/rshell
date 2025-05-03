@@ -19,7 +19,7 @@ mode_t get_perm(const char *filename) {
 }
 void* ralloc(void *ptr, size_t *capacity, size_t dsize) { // small functions to handle memory
 	void *result = ptr;
-	if (dsize + 1 > *capacity || !ptr) {
+	if (dsize > *capacity || !ptr) {
 		*capacity = *capacity + (int)(*capacity / 2);
 		if (*capacity < dsize) {
 			*capacity = dsize;
@@ -430,3 +430,7 @@ double ceil(double x) {
         return (double)(xi + 1);
     return (double)xi;
 }
+int is_glob(const char *arg) {
+    return strchr(arg, '*') != NULL;
+}
+
