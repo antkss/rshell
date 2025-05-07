@@ -590,9 +590,10 @@ void replace_alias(TokenStream *ts) {
             &ts->tokens[i + 1],
             sizeof(char *) * (ts->count - i - 1)
         );
+		free(ts->tokens[i]); // old token
 
         for (int j = 0; j < alias_ts->count; j++) {
-            ts->tokens[i + j] = dupstr(alias_ts->tokens[j]);
+            ts->tokens[i + j] = dupstr(alias_ts->tokens[j]); // new token replaced
         }
 
         ts->count = new_count;
@@ -616,8 +617,8 @@ void parse_call(const char *input) {
 		ASTNode *root = parse_sequence(ts);
 		// shell_print("ast normal: \n");
 		// print_ast(root, 3);
+		eval_ast(root);
 		if (root) {
-			eval_ast(root);
 			free(newline);
 			free_ts(ts);
 			free_ast(root);
