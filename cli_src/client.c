@@ -119,6 +119,7 @@ void handle_socket(int sockfd) {
 	enable_raw_mode();
     char buffer[ARG_MAX];
 	fd_set fds;
+	memset(buffer, 0, sizeof(buffer));
     while (1) {
         FD_ZERO(&fds);
         FD_SET(sockfd, &fds);

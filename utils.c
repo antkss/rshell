@@ -9,6 +9,9 @@
 #include <dirent.h>
 #include "terminal.h"
 #include "command.h"
+#if __has_include(<linux/limits.h>)
+#include <linux/limits.h>
+#endif
 mode_t get_perm(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == -1) {

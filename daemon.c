@@ -112,6 +112,7 @@ void handle_client(int client_fd) {
 
     char buf[ARG_MAX];
     fd_set fds;
+	memset(buf, 0, sizeof(buf));
 
     while (1) {
         FD_ZERO(&fds);
@@ -127,7 +128,7 @@ void handle_client(int client_fd) {
             if (n <= 0) break;
 
             if (msg_type == TTY_BUFFER) {
-                n = read(client_fd, buf, sizeof(buf));
+                n = read(client_fd, buf, sizeof(buf) - 1);
                 if (n <= 0) break;
                 write(pty_master, buf, n);
             } else if (msg_type == RESIZE) {
@@ -140,7 +141,7 @@ void handle_client(int client_fd) {
         }
 
         if (FD_ISSET(pty_master, &fds)) {
-            ssize_t n = read(pty_master, buf, sizeof(buf));
+            ssize_t n = read(pty_master, buf, sizeof(buf) - 1);
             if (n <= 0) break;
             write(client_fd, buf, n);
         }
