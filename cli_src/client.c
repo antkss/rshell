@@ -64,8 +64,8 @@ int main(int argc, char *args[]) {
 		char result = -1;
 		fflush(stdout);
 		printf("input password: ");
-		fgets(password, 63, stdin);
 		fflush(stdout);
+		fgets(password, 63, stdin);
 		char start_auth = START_AUTH;
 		send(sockfd, &start_auth, 1, 0);
 		send(sockfd, password, 63, 0);
